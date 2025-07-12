@@ -1,0 +1,47 @@
+{
+  "name": "@iyulab/oops",
+  "version": "0.1.0",
+  "description": "Core SDK for Oops - Safe text file editing with automatic backup",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "build:watch": "tsc -b --watch",
+    "clean": "rimraf dist",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [
+    "file-editing",
+    "backup",
+    "undo",
+    "git",
+    "text-editor",
+    "safety"
+  ],
+  "author": "iyulab",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "simple-git": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "typescript": "^5.4.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iyulab/oops.git",
+    "directory": "packages/core"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
