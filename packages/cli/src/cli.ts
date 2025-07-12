@@ -3,7 +3,7 @@
  */
 
 import { Command } from 'commander';
-import { InitCommand, StatusCommand, BeginCommand, DiffCommand, KeepCommand, UndoCommand, ListCommand } from './commands';
+import { InitCommand, StatusCommand, BeginCommand, DiffCommand, KeepCommand, UndoCommand } from './commands';
 // Simple color helpers
 const colors = {
   green: (text: string) => `\x1b[32m${text}\x1b[0m`,

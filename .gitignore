@@ -411,3 +411,5 @@ venv.bak/
 CLAUDE.md
 
 .claude/
+.oops/
+test-oops/
