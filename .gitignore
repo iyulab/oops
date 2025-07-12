@@ -413,3 +413,5 @@ CLAUDE.md
 .claude/
 .oops/
 test-oops/
+
+tsconfig.tsbuildinfo
