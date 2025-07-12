@@ -2,42 +2,16 @@
 
 ## Command Overview
 
-Oops provides **12 essential commands** focused on safe text editing. Commands are organized by frequency of use and workflow stage.
+Oops provides **5 essential commands** focused on safe text editing. Each command has a single, clear purpose.
 
-## Core Workflow Commands
+## Essential Commands
 
-### `oops init`
-Initialize a workspace for safe editing.
-
-```bash
-oops init [options]
-```
-
-**Options:**
-- `--temp` - Use temporary directory instead of `.oops/`
-- `--workspace <path>` - Specify custom workspace location
-- `-f, --force` - Overwrite existing workspace
-
-**Examples:**
-```bash
-oops init                    # Create .oops/ in current dir
-oops init --temp            # Use system temp directory  
-oops init --workspace /tmp  # Custom location
-```
-
-**What it does:**
-- Creates workspace directory structure
-- Initializes configuration files
-- Sets up default ignore patterns
-
----
-
-### `oops begin <file>`
-Start tracking a file for safe editing.
+### `oops <file>`
+Start editing a file safely (auto-initialization).
 
 ```bash
-oops begin <file> [options]
-oops begin <pattern>
+oops <file> [options]
+oops <pattern>
 ```
 
 **Options:**
@@ -46,20 +20,26 @@ oops begin <pattern>
 
 **Examples:**
 ```bash
-oops begin config.txt                    # Track single file
-oops begin "*.conf"                     # Track files by pattern
-oops begin nginx.conf -m "Before SSL"   # With backup message
+oops config.txt                    # Track single file
+oops "*.conf"                     # Track files by pattern  
+oops nginx.conf -m "Before SSL"   # With backup message
 ```
 
 **What it does:**
+- Creates workspace if needed (auto-init)
 - Creates backup of original file
-- Initializes Git repository for the file
 - Starts tracking file changes
+- Ready for editing with any editor
+
+**Smart behavior:**
+- **First time**: Creates backup and starts tracking
+- **Already tracking**: Shows current status and change summary
+- **File changed outside**: Warns and offers options
 
 **Safety notes:**
 - File must exist and be readable
 - Creates backup before any changes
-- Warns if file is already being tracked
+- Shows helpful next steps in output
 
 ---
 
@@ -86,6 +66,7 @@ oops diff --tool code        # Open in VS Code
 - Line-by-line differences
 - Added/removed/modified lines
 - File statistics (lines changed)
+- Helpful guidance when no changes found
 
 ---
 
@@ -116,7 +97,7 @@ oops keep config.txt -m "SSL enabled"   # With message
 
 **Safety notes:**
 - Always prompts for confirmation unless `-y` used
-- Creates final backup before cleanup
+- Shows clear success message with next steps
 - Cannot be undone after completion
 
 ---
@@ -148,66 +129,13 @@ oops undo config.txt --save-current # Backup current first
 
 **Safety notes:**
 - Always prompts for confirmation unless `-y` used
-- By default, saves current state as `.bak` file
+- Shows impact warning (lines that will be lost)
 - **Current changes will be lost**
 
 ---
 
-### `oops abort <file>`
-Stop tracking without applying or reverting changes.
-
-```bash
-oops abort <file> [options]
-oops abort --all
-```
-
-**Options:**
-- `--all` - Abort tracking for all files
-- `-y, --yes` - Skip confirmation prompt
-
-**Examples:**
-```bash
-oops abort config.txt    # Stop tracking, keep current state
-oops abort --all        # Abort all tracking
-```
-
-**What it does:**
-- Stops tracking the file
-- Leaves current file unchanged
-- Removes backup and tracking data
-
-**Use when:**
-- You want to keep current changes but stop using Oops
-- You'll handle the file with different tools
-- You made changes but don't need the backup anymore
-
-## Status and Information Commands
-
-### `oops` / `oops list`
-Show files in current directory with tracking status.
-
-```bash
-oops [options]
-```
-
-**Options:**
-- `-a, --all` - Include hidden files
-- `-t, --tracked` - Show only tracked files
-
-**Example output:**
-```
-Files in current directory:
-  config.txt        [tracked - modified]
-  script.sh         [tracked - clean]  
-  README.md         
-  temp.log          [ignored]
-* .oops/          [workspace]
-```
-
----
-
 ### `oops status`
-Show detailed status of tracked files.
+See what's being tracked.
 
 ```bash
 oops status [options]
@@ -227,249 +155,222 @@ Tracking Status:
 Summary: 3 tracked, 2 modified, 1 clean
 ```
 
----
-
-### `oops which`
-Show current workspace location.
-
-```bash
-oops which [options]
-```
-
-**Options:**
-- `-v, --verbose` - Show additional workspace info
-
-**Example output:**
-```
-Workspace: /tmp/oops-project-a1b2c3d4/
-Type: temporary
-Created: 2025-07-11 14:30:00
-Files tracked: 3
-```
-
-## Configuration and Maintenance
-
-### `oops config`
-Manage Oops configuration.
-
-```bash
-oops config [key] [value] [options]
-```
-
-**Options:**
-- `--list` - Show all configuration
-- `--reset` - Reset to defaults
-
-**Key settings:**
-```bash
-oops config workspace.temp true        # Use temp directories
-oops config safety.confirmKeep false   # Skip keep confirmations  
-oops config safety.confirmUndo false   # Skip undo confirmations
-oops config diff.tool code            # Default diff tool
-```
-
-**Example:**
-```bash
-oops config --list                    # Show all settings
-oops config diff.tool                # Show specific setting
-oops config diff.tool vimdiff        # Change setting
-```
-
----
-
-### `oops clean`
-Clean up workspace and temporary files.
-
-```bash
-oops clean [options]
-```
-
-**Options:**
-- `--all` - Remove entire workspace
-- `--temp` - Clean only temporary files
-- `--dry-run` - Show what would be cleaned
-- `-f, --force` - Skip confirmation
-
-**Examples:**
-```bash
-oops clean --temp       # Clean temp files only
-oops clean --all        # Remove everything
-oops clean --dry-run    # Preview cleanup
-```
-
-**Safety notes:**
-- Always shows what will be deleted
-- Prompts for confirmation unless `--force`
-- **Cannot recover deleted tracking data**
-
----
-
-### `oops help`
-Show help information.
-
-```bash
-oops help [command]
-```
-
-**Examples:**
-```bash
-oops help           # General help
-oops help begin     # Help for specific command
-```
+**What it shows:**
+- Which files are tracked
+- Whether they've been modified
+- Quick summary of changes
+- Helpful next steps
 
 ## Global Options
 
 Available for all commands:
 
-- `-v, --verbose` - Detailed output
-- `-q, --quiet` - Minimal output  
+- `--all` - Apply to all tracked files
+- `--yes` - Skip confirmation prompts
+- `--quiet` - Minimal output
+- `--help` - Show help for command
 - `--no-color` - Disable colored output
 - `--workspace <path>` - Use specific workspace
-- `--version` - Show version information
-
-## Configuration Files
-
-### Workspace Config (`.oops/config.json`)
-```json
-{
-  "workspace": {
-    "useTemp": false,
-    "path": null
-  },
-  "safety": {
-    "confirmKeep": true,
-    "confirmUndo": true,
-    "autoBackup": true
-  },
-  "diff": {
-    "tool": "auto",
-    "context": 3
-  }
-}
-```
-
-### Ignore Patterns (`.oops/ignore`)
-```
-# Automatic ignores
-*.log
-*.tmp
-*.swp
-*~
-.DS_Store
-node_modules/
-.git/
-
-# Custom patterns can be added here
-```
-
-## Environment Variables
-
-- `OOPS_WORKSPACE` - Default workspace path
-- `OOPS_EDITOR` - Default text editor
-- `OOPS_DIFF_TOOL` - Default diff tool
-- `OOPS_NO_COLOR` - Disable colors (any value)
 
 ## Workflow Examples
 
 ### Basic File Editing
 ```bash
-# Setup
-oops init
-oops begin config.txt
-
-# Edit file with your editor
+# Start editing safely (auto-creates workspace)
+oops config.txt
 vim config.txt
 
-# Review and apply
+# Review changes
 oops diff config.txt
-oops keep config.txt
+
+# Apply or revert
+oops keep config.txt    # ✅ Looks good
+# OR
+oops undo config.txt    # ❌ Go back to backup
 ```
 
 ### Multiple File Changes
 ```bash
 # Track multiple files
-oops begin "*.conf"
-oops status
+oops database.conf
+oops redis.conf
+oops nginx.conf
 
-# Edit files...
+# Edit files with your preferred tools...
 
 # Review all changes
+oops status
 oops diff --all
 
 # Apply selectively
-oops keep nginx.conf
-oops undo apache.conf
-oops abort redis.conf
+oops keep database.conf
+oops keep redis.conf
+oops undo nginx.conf    # This one went wrong
 ```
 
-### Using Temporary Workspace
+### Quick Recovery
 ```bash
-# Use temp directory (good for experiments)
-oops init --temp
-oops which  # Shows temp location
-
-# Work normally
-oops begin test.txt
-# ... edit ...
-oops keep test.txt
-
-# Auto-cleanup when done
-oops clean --all
-```
-
-### Emergency Recovery
-```bash
-# Check what's being tracked
+# Check current state
 oops status
 
 # See all changes
 oops diff --all
 
-# Revert everything to backup
-oops undo --all
+# Panic button - revert everything
+oops undo --all --yes
+```
 
-# Or clean up completely
-oops clean --all --force
+### Experiment Safely
+```bash
+# Start tracking for experiments
+oops algorithm.py
+
+# Try different approaches...
+# Edit with any editor
+
+# Review what changed
+oops diff algorithm.py
+
+# Decision time
+oops keep algorithm.py   # Good changes
+# OR
+oops undo algorithm.py   # Nope, go back
+```
+
+## Environment Variables
+
+- `OOPS_WORKSPACE` - Default workspace path
+- `OOPS_DIFF_TOOL` - Default diff tool (code, vimdiff, meld)
+- `NO_COLOR` - Disable colors (any value)
+
+**Examples:**
+```bash
+# Use persistent workspace in current directory
+export OOPS_WORKSPACE=.oops
+
+# Use VS Code for diffs
+export OOPS_DIFF_TOOL=code
+
+# Disable colors
+export NO_COLOR=1
+```
+
+## File Structure
+
+Oops uses temporary workspaces by default:
+
+```
+/tmp/oops-a1b2c3d4/      # Random temp directory
+├── backups/             # Original file copies
+│   ├── config.txt
+│   └── nginx.conf
+└── tracking.json        # What files we're watching
+```
+
+**Benefits:**
+- ✅ Auto-cleanup on system reboot
+- ✅ No clutter in project directories
+- ✅ Isolated per-session workspaces
+- ✅ No accidental commits of backup files
+
+**For persistent storage:** Set `OOPS_WORKSPACE=.oops`
+
+## Smart Messages and Guidance
+
+### First-time Usage
+```bash
+$ oops config.txt        # First time in directory
+✨ Creating temporary workspace at /tmp/oops-a1b2c3/
+📁 Backup created for config.txt
+🎯 Edit with any editor, then run 'oops diff config.txt'
+```
+
+### Status-aware Responses
+```bash
+$ oops config.txt        # Already tracking, no changes
+📝 config.txt - No changes yet
+💡 Edit the file and run 'oops diff config.txt'
+
+$ oops config.txt        # Already tracking, has changes
+📊 config.txt - 5 lines changed
+💡 Run 'oops diff config.txt' to see changes
+```
+
+### Helpful Completions
+```bash
+$ oops keep config.txt
+✅ Changes kept for config.txt
+🧹 Backup cleaned up - file no longer tracked
+💡 Run 'oops config.txt' to start tracking again
+
+$ oops undo config.txt
+⚠️ This will lose 15 lines of changes in config.txt
+❓ Are you sure? (y/N) y
+✅ File restored from backup
+🧹 Tracking stopped
 ```
 
 ## Safety Guidelines
 
 ### Before You Start
-1. Always run `oops init` in your project directory
-2. Use `oops begin` before editing important files
+1. Simply run `oops <file>` - auto-initialization handles setup
+2. Files must exist before tracking
 3. Check `oops status` to see what's being tracked
 
 ### During Editing
-1. Use `oops diff` to review changes before committing
-2. Save current state with `oops abort` if unsure
-3. Don't manually delete `.oops/` while files are tracked
+1. Use `oops diff` to review changes before deciding
+2. Edit files with any editor you prefer
+3. Multiple edit sessions are fine - backup persists
 
 ### When Finishing
-1. Review changes with `oops diff` 
+1. Review changes with `oops diff`
 2. Use `oops keep` to apply changes permanently
 3. Use `oops undo` to revert to backup
-4. Clean up with `oops clean` when done
+4. Temp workspaces auto-clean on reboot
 
 ### Emergency Situations
-1. If Oops seems corrupted: `oops clean --all --force`
-2. If files are missing: Check `.oops/files/` for backups
-3. If workspace is lost: Backups are in Git repositories under workspace
+1. Check current state: `oops status`
+2. See all changes: `oops diff --all`
+3. Panic button: `oops undo --all --yes`
+4. Nuclear option: Reboot (temp cleanup) or manually delete workspace
 
 ## Error Messages
 
 ### Common Issues
-- **"No workspace found"** → Run `oops init`
-- **"File not tracked"** → Run `oops begin <file>` first  
-- **"File already tracked"** → Use `oops abort` then `oops begin` again
+- **"File not found: config.txt"** → File must exist before tracking
+- **"File modified outside of oops"** → Use `oops diff` to see external changes
+- **"No tracked files"** → Run `oops <file>` to start tracking
 - **"Permission denied"** → Check file/directory permissions
-- **"Workspace corrupted"** → Run `oops clean --all` and start over
 
 ### Getting Help
-1. Use `oops help <command>` for command-specific help
+1. Use `oops --help` or `oops <command> --help`
 2. Use `oops status` to understand current state
-3. Use `oops which` to find workspace location
-4. Check logs in workspace directory for detailed errors
+3. Use `oops diff --all` to see all changes
+4. Each command provides helpful next-step guidance
+
+## Design Philosophy
+
+### Why Only 5 Commands?
+
+**Simplicity wins.** Each command has one clear purpose:
+
+1. `oops <file>` - "I want to edit this safely"
+2. `oops diff` - "What did I change?"
+3. `oops keep` - "These changes are good"
+4. `oops undo` - "Take me back to the backup"
+5. `oops status` - "What am I working on?"
+
+### What Oops Doesn't Do
+
+**Intentionally simple:**
+- ❌ Version history - just one backup per file
+- ❌ Branching - linear edit/keep/undo workflow
+- ❌ Remote sync - local backups only
+- ❌ Complex merging - simple restore only
+- ❌ File watching - manual check with `diff`
+
+**This is by design.** For complex version control, use Git. For safe quick edits, use Oops.
 
 ---
 
-**Remember: Oops is designed to be simple and safe. When in doubt, use `oops status` and `oops diff` to understand the current state before making changes.**
+**Remember: The best backup tool is the one you actually use. Oops stays out of your way while keeping you safe.**

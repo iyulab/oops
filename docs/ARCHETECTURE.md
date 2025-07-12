@@ -46,9 +46,8 @@ Oops follows a **simplicity-first** approach to safe text editing. Unlike comple
 ### 2. Command Processors
 **Purpose**: Command-specific logic and validation
 
-**Commands** (12 total):
-- **Core**: `init`, `begin`, `diff`, `keep`, `undo`, `abort`
-- **Utility**: `status`, `clean`, `config`, `which`, `help`, `list`
+**Commands** (5 total):
+- **Core**: `oops <file>`, `diff`, `keep`, `undo`, `status`
 
 **Pattern**:
 ```javascript
@@ -83,16 +82,14 @@ class Command {
 
 ```mermaid
 graph LR
-    A[oops begin] --> B[Create Backup]
+    A[oops file.txt] --> B[Create Backup]
     B --> C[User Edits]
     C --> D[oops diff]
     D --> E{Decision}
     E -->|keep| F[Apply Changes]
     E -->|undo| G[Restore Backup]
-    E -->|abort| H[Remove Tracking]
     F --> I[Cleanup]
     G --> I
-    H --> I
 ```
 
 ### Workspace Structure
@@ -120,7 +117,7 @@ graph LR
 
 ```
 1. --workspace CLI option
-2. KEEPER_WORKSPACE environment variable  
+2. OOPS_WORKSPACE environment variable  
 3. Local .oops/ directory (if exists)
 4. Parent directory search (up to 5 levels)
 5. Configuration workspace.path setting

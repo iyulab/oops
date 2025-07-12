@@ -294,57 +294,73 @@ Before starting a new phase:
 
 ---
 
-### 🔧 Phase 1: Core Foundation (CURRENT PHASE)
+### 🔧 Phase 1: Core Foundation (CURRENT PHASE) 
 **Status: In Progress**
-**Goal: Implement essential functionality for MVP**
+**Goal: Implement simplified 5-command architecture**
 
-#### Phase 1.1: Complete Core Package Foundation (Week 1)
+#### Phase 1.1: Architecture Simplification (Week 1) - NEW
+- [x] **Complete documentation updates** ✅
+  - [x] Update README.md with new 5-command design ✅
+  - [x] Update ARCHITECTURE.md to reflect simplified workflow ✅
+  - [x] Update COMMANDS.md with new command structure ✅
+  - [x] Update TODO.md with revised phase plans ✅
+- [ ] **Remove init/begin commands from CLI**
+  - [ ] Delete `InitCommand` and `BeginCommand` classes
+  - [ ] Update CLI argument parsing for new structure
+  - [ ] Implement `oops <file>` auto-initialization logic
+- [ ] **Plan isomorphic-git migration**
+  - [ ] Research isomorphic-git API and requirements
+  - [ ] Create migration plan for GitWrapper class
+  - [ ] Update dependencies in package.json
+
+#### Phase 1.2: Enhanced Core Foundation (Week 1-2)
 - [x] Implement error handling system (`OopsError` classes) ✅
 - [x] Create configuration management system ✅
 - [x] Implement path resolution utilities ✅
 - [x] Create basic file system operations ✅
-- [ ] **NEXT: Enhance file system operations with better error handling**
+- [ ] **Enhance file system operations with atomic transactions**
 - [ ] Add comprehensive validation and safety checks
-- [ ] Implement atomic file operations with transaction support
 - [ ] Add logging and debugging infrastructure
 
-#### Phase 1.2: Robust Git Integration (Week 1-2)
-- [x] Implement `GitWrapper` class ✅
-- [ ] **CURRENT: Fix Git integration issues and improve error handling**
-- [ ] Create per-file Git repository management
-- [ ] Add backup and restore operations with integrity checks
-- [ ] Implement Git health checks and repository validation
-- [ ] Add Git operation retries and cleanup mechanisms
+#### Phase 1.3: Git Migration to isomorphic-git (Week 2)
+- [x] Implement `GitWrapper` class (simple-git based) ✅
+- [ ] **Migrate to isomorphic-git**
+  - [ ] Replace simple-git dependency with isomorphic-git
+  - [ ] Rewrite GitWrapper to use isomorphic-git API
+  - [ ] Ensure feature parity (init, add, commit, diff, reset, checkout)
+  - [ ] Add proper error handling for isomorphic-git operations
+  - [ ] Test cross-platform compatibility
 
-#### Phase 1.3: Core Business Logic Implementation (Week 2)
+#### Phase 1.4: Simplified CLI Implementation (Week 2-3)
+- [x] Create CLI argument parsing framework ✅
+- [x] Implement basic `oops status` command ✅
+- [ ] **Implement new 5-command structure**
+  - [ ] Implement `oops <file>` with auto-initialization
+  - [ ] Implement `oops diff` with proper output formatting
+  - [ ] Implement `oops keep` with confirmation prompts
+  - [ ] Implement `oops undo` with safety checks
+  - [ ] Enhance `oops status` with detailed tracking info
+
+#### Phase 1.5: Core Workflow Integration (Week 3)
 - [x] Create `FileTracker` for state management ✅
 - [x] Implement `BackupManager` for backup operations ✅
 - [x] Create `WorkspaceManager` for workspace lifecycle ✅
 - [x] Implement basic diff functionality ✅
-- [ ] **NEXT: Complete workspace initialization and validation**
-- [ ] Implement proper file tracking state persistence
-- [ ] Add workspace corruption detection and repair
-- [ ] Enhance diff algorithm with proper line-by-line comparison
+- [ ] **Complete end-to-end workflow integration**
+  - [ ] Connect CLI commands to core functionality
+  - [ ] Implement workspace auto-initialization
+  - [ ] Add smart messaging and user guidance
+  - [ ] Implement proper cleanup and state management
 
-#### Phase 1.4: Essential CLI Commands (Week 2-3)
-- [x] Create CLI argument parsing ✅
-- [x] Implement `oops init` command (basic) ✅
-- [x] Implement `oops status` command (basic) ✅
-- [ ] **NEXT: Connect CLI commands to core functionality**
-- [ ] Implement `oops begin` command with file tracking
-- [ ] Implement `oops diff` command with proper output formatting
-- [ ] Implement `oops keep` command with confirmation prompts
-- [ ] Implement `oops undo` command with safety checks
-
-#### Phase 1.5: Comprehensive Testing (Week 3)
+#### Phase 1.6: Testing and Validation (Week 3)
 - [x] Basic unit tests for core functionality ✅
-- [ ] **NEXT: Add integration tests for workflow scenarios**
-- [ ] Add error scenario testing (file not found, permissions, etc.)
-- [ ] Add cross-platform compatibility tests
-- [ ] Add performance tests for large files
-- [ ] Test workspace corruption recovery scenarios
+- [ ] **Comprehensive testing suite**
+  - [ ] Integration tests for simplified workflow
+  - [ ] Error scenario testing (permissions, missing files, etc.)
+  - [ ] Cross-platform compatibility tests
+  - [ ] isomorphic-git integration tests
 
-#### Phase 1.6: Documentation and Phase Wrap-up (Week 3 - Final Step)
+#### Phase 1.7: Documentation and Phase Wrap-up (Week 3 - Final Step)
 - [ ] **Update documentation** (mandatory final step)
   - [ ] Update `docs/TODO.md` - Mark Phase 1 as complete
   - [ ] Update `docs/IMPLEMENTATION_STATUS.md` - Update progress percentages
@@ -354,44 +370,42 @@ Before starting a new phase:
   - [ ] Reassess priorities based on Phase 1 completion
   - [ ] Break down Phase 2 into detailed weekly tasks
   - [ ] Update Phase 2 success criteria and metrics
-  - [ ] Adjust timeline based on actual Phase 1 progress
 
 **Estimated Duration: 3 weeks**
-**Success Criteria: Complete file tracking workflow (`oops init` → `oops begin` → `oops diff` → `oops keep`/`oops undo`) works end-to-end + Documentation updated**
+**Success Criteria: Simplified 5-command workflow (`oops file.txt` → `oops diff` → `oops keep`/`oops undo`) works end-to-end with isomorphic-git + Documentation updated**
 
 ---
 
 ### 📦 Phase 2: Feature Complete MVP
-**Goal: Complete all planned features and functionality**
+**Goal: Polish and complete the 5-command system**
 
-#### Phase 2.1: Complete CLI Commands
-- [ ] Implement `oops abort` command
-- [ ] Implement `oops list` command
-- [ ] Implement `oops status` command
-- [ ] Implement `oops which` command
-- [ ] Implement `oops config` command
-- [ ] Implement `oops clean` command
-- [ ] Implement `oops help` command
+#### Phase 2.1: Advanced Features
+- [ ] Multiple file tracking support with pattern matching
+- [ ] External diff tool integration (code, vimdiff, meld)
+- [ ] Smart messaging and user guidance system
+- [ ] Configuration through environment variables
+- [ ] Temporary workspace auto-cleanup
 
-#### Phase 2.2: Advanced Features
-- [ ] Multiple file tracking support
-- [ ] File pattern matching
-- [ ] External diff tool integration
-- [ ] Configuration hierarchy system
-- [ ] Workspace location strategies
-
-#### Phase 2.3: SDK Interface
-- [ ] Design public API for programmatic usage
-- [ ] Implement high-level SDK classes
-- [ ] Add TypeScript type definitions
+#### Phase 2.2: SDK Interface
+- [ ] Design clean public API for programmatic usage
+- [ ] Implement high-level SDK classes and methods
+- [ ] Add comprehensive TypeScript type definitions
 - [ ] Create usage examples and documentation
+
+#### Phase 2.3: User Experience Enhancements
+- [ ] Interactive prompts with helpful context
+- [ ] Color-coded output with --no-color support
+- [ ] Progress indicators for long operations
+- [ ] Smart error messages with recovery suggestions
+- [ ] Auto-completion support for shells
 
 #### Phase 2.4: Comprehensive Testing
 - [ ] Complete unit test coverage (>90%)
-- [ ] Integration test suite
-- [ ] Cross-platform compatibility tests
+- [ ] Integration test suite for all workflows
+- [ ] Cross-platform compatibility tests (Windows, macOS, Linux)
 - [ ] Error scenario and edge case testing
-- [ ] Performance benchmarking
+- [ ] Performance benchmarking for large files
+- [ ] Memory usage optimization tests
 
 #### Phase 2.5: Documentation and Phase Wrap-up (Final Step)
 - [ ] **Update documentation** (mandatory final step)
@@ -403,10 +417,9 @@ Before starting a new phase:
   - [ ] Reassess priorities based on Phase 2 completion
   - [ ] Break down Phase 3 into detailed weekly tasks
   - [ ] Update Phase 3 success criteria and metrics
-  - [ ] Adjust timeline based on actual Phase 2 progress
 
 **Estimated Duration: 2-3 weeks**
-**Success Criteria: All 12 commands working, comprehensive test coverage + Documentation updated**
+**Success Criteria: Polished 5-command system with excellent UX, comprehensive test coverage, SDK ready + Documentation updated**
 
 ---
 
@@ -493,40 +506,45 @@ Before starting a new phase:
 
 ### 🎯 IMMEDIATE NEXT STEPS (This Week)
 
-**Phase 1.1: Core Package Foundation (Days 1-3)**
-1. **Enhance file system operations** (Day 1)
-   - Implement atomic file operations with transaction support
-   - Add comprehensive validation and safety checks
-   - Improve error handling with recovery mechanisms
+**Phase 1.1: Architecture Simplification (Days 1-2) - CURRENT**
+1. **Remove legacy commands** (Day 1)
+   - Delete `InitCommand` and `BeginCommand` classes
+   - Update CLI argument parsing for `oops <file>` pattern
+   - Clean up unused command imports and references
 
-2. **Complete Git integration** (Day 2)
-   - Fix Git directory initialization issues
-   - Implement per-file Git repository management
-   - Add backup integrity checks and validation
+2. **Research isomorphic-git** (Day 2)
+   - Study isomorphic-git API and capabilities
+   - Plan migration strategy from simple-git
+   - Update package.json dependencies
 
-3. **Workspace management** (Day 3)
-   - Complete workspace initialization logic
-   - Add workspace corruption detection
-   - Implement workspace repair mechanisms
+**Phase 1.2: Core Implementation (Days 3-5)**
+1. **Implement simplified CLI** (Day 3)
+   - Create `oops <file>` command with auto-initialization
+   - Update argument parsing to handle file patterns
+   - Add smart messaging for different states
 
-**Phase 1.2: Essential CLI Commands (Days 4-7)**
-1. **Connect CLI to core functionality** (Day 4)
-   - Link `oops init` to WorkspaceManager
-   - Link `oops status` to FileTracker
-   - Add proper error handling and user feedback
+2. **Migrate to isomorphic-git** (Day 4-5)
+   - Replace simple-git with isomorphic-git
+   - Rewrite GitWrapper class methods
+   - Test Git operations without CLI dependency
 
-2. **Implement core workflow commands** (Day 5-7)
-   - `oops begin <file>` - Start tracking files
-   - `oops diff <file>` - Show file changes
-   - `oops keep <file>` - Apply changes
-   - `oops undo <file>` - Revert changes
+**Phase 1.3: Integration and Testing (Days 6-7)**
+1. **Connect workflow** (Day 6)
+   - Integrate new CLI with core functionality
+   - Test end-to-end workflow: `oops file.txt` → edit → `oops diff` → `oops keep`
+   - Add proper error handling and user guidance
+
+2. **Basic testing** (Day 7)
+   - Write integration tests for simplified workflow
+   - Test cross-platform compatibility
+   - Fix any issues found during testing
 
 ### 🎯 THIS WEEK'S GOALS
 
-- Complete Phase 1.1 (Core Package Foundation)
-- Start Phase 1.2 (CLI Commands)
-- Have working `oops init` and `oops begin` commands
-- Basic file tracking workflow functional
+- Complete architecture simplification to 5 commands
+- Migrate from simple-git to isomorphic-git
+- Have working `oops file.txt` auto-initialization
+- Basic simplified workflow functional
 
 ### 🎯 SUCCESS METRICS
 
@@ -538,11 +556,12 @@ Before starting a new phase:
 - ✅ Can import packages locally
 
 **Phase 1 Complete When:**
-- [ ] `oops init` creates a working workspace
-- [ ] `oops begin test.txt` starts tracking a file
-- [ ] `oops diff test.txt` shows file changes
-- [ ] `oops keep test.txt` applies changes permanently
-- [ ] `oops undo test.txt` reverts to backup
+- [ ] `oops test.txt` auto-creates workspace and starts tracking
+- [ ] `oops diff test.txt` shows file changes with helpful output
+- [ ] `oops keep test.txt` applies changes permanently with confirmation
+- [ ] `oops undo test.txt` reverts to backup with safety warnings
+- [ ] `oops status` shows clear tracking information
+- [ ] isomorphic-git replaces simple-git dependency
 - [ ] Basic error handling works for common scenarios
 - [ ] Core functionality has comprehensive test coverage (>80%)
 
