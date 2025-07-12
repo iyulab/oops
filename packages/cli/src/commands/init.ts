@@ -15,7 +15,7 @@ export class InitCommand extends BaseCommand {
     }
   }
 
-  public async execute(args: any[]): Promise<void> {
+  public async execute(_args: any[]): Promise<void> {
     try {
       this.log('Initializing workspace...');
 
@@ -34,7 +34,6 @@ export class InitCommand extends BaseCommand {
 
       const newWorkspaceInfo = await oops.getWorkspaceInfo();
       this.log('✓ Workspace initialized at: ' + newWorkspaceInfo.path);
-
     } catch (error: any) {
       this.error('Failed to initialize workspace: ' + error.message);
       console.error('Stack trace:', error.stack);

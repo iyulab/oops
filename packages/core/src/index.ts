@@ -17,5 +17,4 @@ export * from './backup';
 export * from './diff';
 
 // Main SDK class
-export { Oops as Oops } from './oops';
-export { Oops } from './oops'; // Keep for backward compatibility
+export { Oops } from './oops';

@@ -40,23 +40,22 @@ export class TrackCommand extends BaseCommand {
 
       // Check tracking status and respond accordingly
       const isTracked = await oops.isTracked(filePath);
-      
+
       if (isTracked) {
         // File already tracked - show status
         this.log(`📊 ${path.basename(filePath)} - Already tracking`);
-        
+
         // TODO: Check if file has changes and show appropriate message
         // For now, just show basic guidance
         this.log(`💡 Edit the file and run 'oops diff ${path.basename(filePath)}' to see changes`);
       } else {
         // Start tracking new file
         this.log(`📁 Backup created for ${path.basename(filePath)}`);
-        const trackingInfo = await oops.begin(filePath);
-        
+        await oops.begin(filePath);
+
         this.log(`🎯 Ready to edit safely!`);
         this.log(`💡 Edit with any editor, then run 'oops diff ${path.basename(filePath)}'`);
       }
-
     } catch (error: any) {
       this.error('Failed to track file: ' + error.message);
       throw error;

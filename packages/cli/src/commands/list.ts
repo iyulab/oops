@@ -8,11 +8,11 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 export class ListCommand extends BaseCommand {
-  public async validate(args: any[]): Promise<void> {
+  public async validate(_args: any[]): Promise<void> {
     // List command accepts no arguments
   }
 
-  public async execute(args: any[]): Promise<void> {
+  public async execute(_args: any[]): Promise<void> {
     try {
       const oops = new Oops();
 
@@ -62,7 +62,6 @@ export class ListCommand extends BaseCommand {
           }
         }
       }
-
     } catch (error: any) {
       this.error('Failed to list files: ' + error.message);
       throw error;

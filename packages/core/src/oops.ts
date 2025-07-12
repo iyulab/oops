@@ -111,6 +111,112 @@ export class Oops {
     await this.fileTracker.stopTracking(filePath);
   }
 
+  // Workspace management
+  public async isWorkspaceHealthy(): Promise<boolean> {
+    try {
+      const info = await this.getWorkspaceInfo();
+      return info.exists && info.isHealthy;
+    } catch {
+      return false;
+    }
+  }
+
+  public async cleanWorkspace(): Promise<void> {
+    await this.workspaceManager.clean();
+  }
+
+  public async getWorkspaceSize(): Promise<{ files: number; sizeBytes: number }> {
+    const info = await this.getWorkspaceInfo();
+    let totalSize = 0;
+
+    // Calculate total size of all tracked files
+    for (const file of info.trackedFiles) {
+      try {
+        const { FileSystem } = await import('./file-system');
+        if (await FileSystem.exists(file.filePath)) {
+          const fileInfo = await FileSystem.getFileInfo(file.filePath);
+          totalSize += fileInfo.size;
+        }
+      } catch {
+        // Ignore errors for individual files
+      }
+    }
+
+    return {
+      files: info.trackedFiles.length,
+      sizeBytes: totalSize,
+    };
+  }
+
+  public async getAllTrackedFiles(): Promise<FileTrackingInfo[]> {
+    return await this.fileTracker.getAllTracked();
+  }
+
+  public async keepAll(): Promise<void> {
+    const trackedFiles = await this.getAllTrackedFiles();
+    for (const file of trackedFiles) {
+      await this.keep(file.filePath);
+    }
+  }
+
+  public async undoAll(): Promise<void> {
+    const trackedFiles = await this.getAllTrackedFiles();
+    for (const file of trackedFiles) {
+      await this.undo(file.filePath);
+    }
+  }
+
+  public async abortAll(): Promise<void> {
+    const trackedFiles = await this.getAllTrackedFiles();
+    for (const file of trackedFiles) {
+      await this.abort(file.filePath);
+    }
+  }
+
+  public async validateTrackedFiles(): Promise<{ valid: boolean; errors: string[] }> {
+    const errors: string[] = [];
+    const trackedFiles = await this.getAllTrackedFiles();
+
+    for (const file of trackedFiles) {
+      try {
+        const { FileSystem } = await import('./file-system');
+        if (!(await FileSystem.exists(file.filePath))) {
+          errors.push(`Tracked file does not exist: ${file.filePath}`);
+        }
+        if (!(await FileSystem.exists(file.backupPath))) {
+          errors.push(`Backup file does not exist: ${file.backupPath}`);
+        }
+      } catch (error: any) {
+        errors.push(`Error validating ${file.filePath}: ${error.message}`);
+      }
+    }
+
+    return { valid: errors.length === 0, errors };
+  }
+
+  public async getVersion(): Promise<string> {
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const packagePath = path.join(__dirname, '../../package.json');
+      const packageContent = await fs.readFile(packagePath, 'utf8');
+      const packageJson = JSON.parse(packageContent);
+      return packageJson.version;
+    } catch {
+      return '0.1.0';
+    }
+  }
+
+  public static async createTempWorkspace(): Promise<Oops> {
+    const { FileSystem } = await import('./file-system');
+    const tempDir = await FileSystem.createTempDirectory('oops-temp-');
+    return new Oops({}, tempDir);
+  }
+
+  public static async createLocalWorkspace(workspaceDir: string): Promise<Oops> {
+    return new Oops({}, workspaceDir);
+  }
+
   // Configuration
   public getConfig(): OopsConfig {
     return this.configManager.get();

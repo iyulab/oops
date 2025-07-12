@@ -83,3 +83,15 @@ export class PermissionError extends OopsError {
     this.name = 'PermissionError';
   }
 }
+
+export class FileOperationError extends OopsError {
+  constructor(operation: string, path: string, message: string, details: Record<string, any> = {}) {
+    super(`File operation failed: ${operation} on ${path} - ${message}`, 'FILE_OPERATION_ERROR', {
+      operation,
+      path,
+      message,
+      ...details,
+    });
+    this.name = 'FileOperationError';
+  }
+}

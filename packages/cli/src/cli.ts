@@ -3,7 +3,15 @@
  */
 
 import { Command } from 'commander';
-import { InitCommand, StatusCommand, BeginCommand, DiffCommand, KeepCommand, UndoCommand } from './commands';
+import {
+  InitCommand,
+  StatusCommand,
+  BeginCommand,
+  DiffCommand,
+  KeepCommand,
+  UndoCommand,
+  ListCommand,
+} from './commands';
 // Simple color helpers
 const colors = {
   green: (text: string) => `\x1b[32m${text}\x1b[0m`,
@@ -72,7 +80,7 @@ export class CLI {
     this.program
       .command('begin <file>')
       .description('Start tracking changes to a file')
-      .action(async (file, options, command) => {
+      .action(async (file, _options, _command) => {
         try {
           await beginCommand.validate([file]);
           await beginCommand.execute([file]);
@@ -85,7 +93,7 @@ export class CLI {
     this.program
       .command('diff <file>')
       .description('Show changes in a tracked file')
-      .action(async (file, options, command) => {
+      .action(async (file, _options, _command) => {
         try {
           await diffCommand.validate([file]);
           await diffCommand.execute([file]);
@@ -98,7 +106,7 @@ export class CLI {
     this.program
       .command('keep <file>')
       .description('Apply changes and stop tracking the file')
-      .action(async (file, options, command) => {
+      .action(async (file, _options, _command) => {
         try {
           await keepCommand.validate([file]);
           await keepCommand.execute([file]);
@@ -111,7 +119,7 @@ export class CLI {
     this.program
       .command('undo <file>')
       .description('Revert file to backup and stop tracking')
-      .action(async (file, options, command) => {
+      .action(async (file, _options, _command) => {
         try {
           await undoCommand.validate([file]);
           await undoCommand.execute([file]);
@@ -130,7 +138,7 @@ export class CLI {
         await listCommand.execute([]);
         return;
       }
-      
+
       await this.program.parseAsync(argv);
     } catch (error) {
       console.error(colors.red('Error:'), error);

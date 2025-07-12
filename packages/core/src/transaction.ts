@@ -3,7 +3,6 @@
  */
 
 import * as fs from 'fs/promises';
-import * as path from 'path';
 import { FileSystem } from './file-system';
 import { OopsError } from './errors';
 
@@ -69,7 +68,10 @@ export class Transaction {
     }
   }
 
-  private createRollbackFunction(operation: TransactionOperation, rollbackAction: string): () => Promise<void> {
+  private createRollbackFunction(
+    operation: TransactionOperation,
+    rollbackAction: string
+  ): () => Promise<void> {
     return async () => {
       switch (operation.type) {
         case 'create':
@@ -86,13 +88,13 @@ export class Transaction {
           break;
         case 'move':
           // Move back to original location
-          if (rollbackAction && await FileSystem.exists(operation.target)) {
+          if (rollbackAction && (await FileSystem.exists(operation.target))) {
             await fs.rename(operation.target, rollbackAction);
           }
           break;
         case 'delete':
           // Restore from backup if available
-          if (rollbackAction && await FileSystem.exists(rollbackAction)) {
+          if (rollbackAction && (await FileSystem.exists(rollbackAction))) {
             await fs.rename(rollbackAction, operation.target);
           }
           break;
@@ -116,7 +118,7 @@ export class FileOperations {
       async execute(): Promise<string> {
         await FileSystem.writeFile(filePath, content);
         return ''; // No rollback data needed
-      }
+      },
     };
   }
 
@@ -128,7 +130,7 @@ export class FileOperations {
       async execute(): Promise<string> {
         await FileSystem.copyFile(source, target);
         return ''; // No rollback data needed
-      }
+      },
     };
   }
 
@@ -140,7 +142,7 @@ export class FileOperations {
       async execute(): Promise<string> {
         await fs.rename(source, target);
         return source; // Return original path for rollback
-      }
+      },
     };
   }
 
@@ -153,7 +155,7 @@ export class FileOperations {
         const backupPath = `${filePath}.backup.${Date.now()}`;
         await fs.rename(filePath, backupPath);
         return backupPath; // Return backup path for rollback
-      }
+      },
     };
   }
 
@@ -174,7 +176,7 @@ export class FileOperations {
         await FileSystem.writeFile(filePath, content);
 
         return originalContent; // Return original content for rollback
-      }
+      },
     };
   }
 
@@ -185,7 +187,7 @@ export class FileOperations {
       async execute(): Promise<string> {
         await FileSystem.mkdir(dirPath);
         return ''; // No rollback data needed
-      }
+      },
     };
   }
 }

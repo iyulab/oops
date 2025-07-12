@@ -15,7 +15,7 @@ export class StatusCommand extends BaseCommand {
     }
   }
 
-  public async execute(args: any[]): Promise<void> {
+  public async execute(_args: any[]): Promise<void> {
     try {
       const oops = new Oops();
 
@@ -49,7 +49,6 @@ export class StatusCommand extends BaseCommand {
           }
         }
       }
-
     } catch (error: any) {
       this.error('Failed to get status: ' + error.message);
       throw error;

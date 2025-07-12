@@ -31,9 +31,20 @@ export class ConfigManager {
     return { ...this.config };
   }
 
-  public set(_key: string, _value: any): void {
-    // TODO: Implement nested key setting
-    // For now, just placeholder
+  public set(key: string, value: any): void {
+    const keys = key.split('.');
+    let current: any = this.config;
+
+    // Navigate to the parent object
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (!(keys[i] in current)) {
+        current[keys[i]] = {};
+      }
+      current = current[keys[i]];
+    }
+
+    // Set the final value
+    current[keys[keys.length - 1]] = value;
   }
 
   public reset(): void {

@@ -101,7 +101,7 @@ export class FileTracker {
     // Check if file has changes compared to backup
     let hasChanges = false;
     try {
-      if (await FileSystem.exists(backupPath) && await FileSystem.exists(filePath)) {
+      if ((await FileSystem.exists(backupPath)) && (await FileSystem.exists(filePath))) {
         const backupContent = await FileSystem.readFile(backupPath);
         const currentContent = await FileSystem.readFile(filePath);
         hasChanges = backupContent !== currentContent;
@@ -120,6 +120,18 @@ export class FileTracker {
       modifiedAt: new Date(),
       metadata,
     };
+  }
+
+  public async getAllTracked(): Promise<FileTrackingInfo[]> {
+    const statePath = path.join(this.workspacePath, 'state.json');
+
+    try {
+      const stateContent = await FileSystem.readFile(statePath);
+      const state = JSON.parse(stateContent);
+      return state.trackedFiles || [];
+    } catch {
+      return [];
+    }
   }
 
   public async getStatus(filePath: string): Promise<FileStatusInfo> {

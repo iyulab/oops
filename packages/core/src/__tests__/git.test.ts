@@ -13,9 +13,12 @@ describe('GitWrapper', () => {
   let testFile: string;
 
   beforeEach(async () => {
-    tempDir = path.join(os.tmpdir(), `git-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
+    tempDir = path.join(
+      os.tmpdir(),
+      `git-test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    );
     await FileSystem.mkdir(tempDir);
-    
+
     gitWrapper = new GitWrapper(tempDir);
     testFile = path.join(tempDir, 'test.txt');
     await FileSystem.writeFile(testFile, 'Hello World');
@@ -33,7 +36,7 @@ describe('GitWrapper', () => {
   describe('Git Initialization', () => {
     test('should initialize git repository', async () => {
       await gitWrapper.init();
-      
+
       const gitDir = path.join(tempDir, '.git');
       expect(await FileSystem.exists(gitDir)).toBe(true);
     });
@@ -72,10 +75,10 @@ describe('GitWrapper', () => {
       // Add and commit initial file
       await gitWrapper.add(testFile);
       await gitWrapper.commit('Initial commit');
-      
+
       // Modify file
       await FileSystem.writeFile(testFile, 'Hello Modified World');
-      
+
       const diff = await gitWrapper.diff(testFile);
       expect(diff).toBeDefined();
     });
@@ -84,7 +87,7 @@ describe('GitWrapper', () => {
       // Add and commit file
       await gitWrapper.add(testFile);
       await gitWrapper.commit('Initial commit');
-      
+
       const diff = await gitWrapper.diff(testFile);
       expect(diff).toBe('');
     });
@@ -93,7 +96,7 @@ describe('GitWrapper', () => {
       // Add and commit file
       await gitWrapper.add(testFile);
       await gitWrapper.commit('Initial commit');
-      
+
       await expect(gitWrapper.reset(testFile)).resolves.not.toThrow();
     });
 
@@ -101,13 +104,13 @@ describe('GitWrapper', () => {
       // Add and commit file
       await gitWrapper.add(testFile);
       await gitWrapper.commit('Initial commit');
-      
+
       // Modify file
       await FileSystem.writeFile(testFile, 'Modified content');
-      
+
       // Checkout original version
       await gitWrapper.checkout(testFile);
-      
+
       const content = await FileSystem.readFile(testFile);
       expect(content).toBe('Hello World');
     });
@@ -126,16 +129,16 @@ describe('GitWrapper', () => {
     test('should count commits correctly', async () => {
       await gitWrapper.add(testFile);
       await gitWrapper.commit('First commit');
-      
+
       expect(await gitWrapper.hasCommits()).toBe(true);
       expect(await gitWrapper.getCommitCount()).toBe(1);
-      
+
       // Add another commit
       const file2 = path.join(tempDir, 'test2.txt');
       await FileSystem.writeFile(file2, 'Second file');
       await gitWrapper.add(file2);
       await gitWrapper.commit('Second commit');
-      
+
       expect(await gitWrapper.getCommitCount()).toBe(2);
     });
   });
@@ -148,21 +151,22 @@ describe('GitWrapper', () => {
 
     test('should handle non-existent files', async () => {
       await gitWrapper.init();
-      
+
       const nonExistentFile = path.join(tempDir, 'nonexistent.txt');
       await expect(gitWrapper.add(nonExistentFile)).rejects.toThrow();
     });
 
     test('should handle checkout of non-existent file', async () => {
       await gitWrapper.init();
-      
+
       const nonExistentFile = path.join(tempDir, 'nonexistent.txt');
       await expect(gitWrapper.checkout(nonExistentFile)).rejects.toThrow();
     });
 
     test('should handle diff of uncommitted file', async () => {
       await gitWrapper.init();
-      
+      await gitWrapper.add(testFile);
+
       const diff = await gitWrapper.diff(testFile);
       expect(diff).toContain('+');
     });
@@ -171,7 +175,7 @@ describe('GitWrapper', () => {
   describe('Git Configuration', () => {
     test('should set up git config during init', async () => {
       await gitWrapper.init();
-      
+
       // Git should be configured with Oops user
       // We can't easily test config values with isomorphic-git, but init should not throw
       expect(await gitWrapper.isHealthy()).toBe(true);

@@ -113,7 +113,22 @@ export class WorkspaceManager {
   }
 
   public async clean(): Promise<void> {
-    // TODO: Implement workspace cleanup
+    if (await this.exists()) {
+      // Remove all files in the workspace
+      const filesDir = path.join(this.workspacePath, 'files');
+      if (await FileSystem.exists(filesDir)) {
+        await FileSystem.remove(filesDir);
+        await FileSystem.mkdir(filesDir);
+      }
+
+      // Reset state
+      const statePath = path.join(this.workspacePath, 'state.json');
+      const state = {
+        trackedFiles: [],
+        lastModified: new Date().toISOString(),
+      };
+      await FileSystem.writeFile(statePath, JSON.stringify(state, null, 2));
+    }
   }
 
   public async repair(): Promise<void> {

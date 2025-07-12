@@ -36,9 +36,22 @@ export class DiffProcessor {
     const modifiedLines = modifiedContent.split('\n');
 
     // Very basic diff counting - TODO: implement proper diff
-    const addedLines = Math.max(0, modifiedLines.length - originalLines.length);
+    let addedLines = Math.max(0, modifiedLines.length - originalLines.length);
     const removedLines = Math.max(0, originalLines.length - modifiedLines.length);
-    const modifiedLineCount = Math.min(originalLines.length, modifiedLines.length);
+    let modifiedLineCount = 0;
+
+    // Count modified lines (lines that exist in both but are different)
+    const minLength = Math.min(originalLines.length, modifiedLines.length);
+    for (let i = 0; i < minLength; i++) {
+      if (originalLines[i] !== modifiedLines[i]) {
+        modifiedLineCount++;
+      }
+    }
+
+    // If content changed but line count is same, treat as added lines
+    if (addedLines === 0 && removedLines === 0 && modifiedLineCount > 0) {
+      addedLines = modifiedLineCount;
+    }
 
     return {
       hasChanges: true,

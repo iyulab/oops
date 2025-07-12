@@ -4,7 +4,7 @@
 
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { FileNotFoundError, PermissionError, OopsError } from './errors';
+import { FileNotFoundError, PermissionError, OopsError, FileOperationError } from './errors';
 import { Transaction, FileOperations } from './transaction';
 
 export class FileSystem {
@@ -87,7 +87,7 @@ export class FileSystem {
     try {
       // Ensure directory exists
       const dir = path.dirname(filePath);
-      if (!await this.exists(dir)) {
+      if (!(await this.exists(dir))) {
         transaction.addOperation(FileOperations.createDirectory(dir));
       }
 
@@ -96,7 +96,9 @@ export class FileSystem {
 
       await transaction.execute();
     } catch (error) {
-      throw new OopsError(`Failed to safely write file: ${filePath}`, 'SAFE_WRITE_ERROR', { error });
+      throw new OopsError(`Failed to safely write file: ${filePath}`, 'SAFE_WRITE_ERROR', {
+        error,
+      });
     }
   }
 
@@ -106,7 +108,7 @@ export class FileSystem {
     try {
       // Ensure destination directory exists
       const dir = path.dirname(destination);
-      if (!await this.exists(dir)) {
+      if (!(await this.exists(dir))) {
         transaction.addOperation(FileOperations.createDirectory(dir));
       }
 
@@ -115,7 +117,11 @@ export class FileSystem {
 
       await transaction.execute();
     } catch (error) {
-      throw new OopsError(`Failed to safely copy file: ${source} -> ${destination}`, 'SAFE_COPY_ERROR', { error });
+      throw new OopsError(
+        `Failed to safely copy file: ${source} -> ${destination}`,
+        'SAFE_COPY_ERROR',
+        { error }
+      );
     }
   }
 
@@ -125,7 +131,7 @@ export class FileSystem {
     try {
       // Ensure destination directory exists
       const dir = path.dirname(destination);
-      if (!await this.exists(dir)) {
+      if (!(await this.exists(dir))) {
         transaction.addOperation(FileOperations.createDirectory(dir));
       }
 
@@ -134,7 +140,11 @@ export class FileSystem {
 
       await transaction.execute();
     } catch (error) {
-      throw new OopsError(`Failed to safely move file: ${source} -> ${destination}`, 'SAFE_MOVE_ERROR', { error });
+      throw new OopsError(
+        `Failed to safely move file: ${source} -> ${destination}`,
+        'SAFE_MOVE_ERROR',
+        { error }
+      );
     }
   }
 
@@ -145,17 +155,21 @@ export class FileSystem {
       transaction.addOperation(FileOperations.deleteFile(filePath));
       await transaction.execute();
     } catch (error) {
-      throw new OopsError(`Failed to safely delete file: ${filePath}`, 'SAFE_DELETE_ERROR', { error });
+      throw new OopsError(`Failed to safely delete file: ${filePath}`, 'SAFE_DELETE_ERROR', {
+        error,
+      });
     }
   }
 
   /**
    * Validate file permissions before operations
    */
-  public static async validatePermissions(filePath: string, operation: 'read' | 'write' | 'execute'): Promise<void> {
+  public static async validatePermissions(
+    filePath: string,
+    operation: 'read' | 'write' | 'execute'
+  ): Promise<void> {
     try {
-      const stats = await fs.stat(filePath);
-      const mode = stats.mode;
+      await fs.stat(filePath);
 
       // Check if file exists and has required permissions
       switch (operation) {
@@ -229,6 +243,36 @@ export class FileSystem {
         };
       }
       throw error;
+    }
+  }
+
+  /**
+   * Remove file or directory recursively
+   */
+  public static async remove(filePath: string): Promise<void> {
+    try {
+      const stats = await fs.stat(filePath);
+      if (stats.isDirectory()) {
+        await fs.rm(filePath, { recursive: true, force: true });
+      } else {
+        await fs.unlink(filePath);
+      }
+    } catch (error: any) {
+      if (error.code !== 'ENOENT') {
+        throw new FileOperationError('remove', filePath, error.message);
+      }
+    }
+  }
+
+  /**
+   * Create temporary directory
+   */
+  public static async createTempDirectory(prefix: string = 'tmp-'): Promise<string> {
+    try {
+      const tmpdir = require('os').tmpdir();
+      return await fs.mkdtemp(path.join(tmpdir, prefix));
+    } catch (error: any) {
+      throw new FileOperationError('create_temp_dir', prefix, error.message);
     }
   }
 
