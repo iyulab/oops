@@ -41,7 +41,7 @@ describe('Oops Core SDK', () => {
 
   describe('Workspace Management', () => {
     test('should initialize workspace', async () => {
-      await oops.initWorkspace();
+      await oops.init();
       const workspaceInfo = await oops.getWorkspaceInfo();
 
       expect(workspaceInfo.exists).toBe(true);
@@ -59,13 +59,13 @@ describe('Oops Core SDK', () => {
     test('should check workspace health', async () => {
       expect(await oops.isWorkspaceHealthy()).toBe(false);
 
-      await oops.initWorkspace();
+      await oops.init();
       expect(await oops.isWorkspaceHealthy()).toBe(true);
     });
 
     test('should clean workspace', async () => {
-      await oops.initWorkspace();
-      await oops.begin(testFile);
+      await oops.init();
+      await oops.track(testFile);
 
       await oops.cleanWorkspace();
 
@@ -75,8 +75,8 @@ describe('Oops Core SDK', () => {
     });
 
     test('should get workspace size', async () => {
-      await oops.initWorkspace();
-      await oops.begin(testFile);
+      await oops.init();
+      await oops.track(testFile);
 
       const size = await oops.getWorkspaceSize();
       expect(size.files).toBe(1);
@@ -86,11 +86,11 @@ describe('Oops Core SDK', () => {
 
   describe('File Tracking', () => {
     beforeEach(async () => {
-      await oops.initWorkspace();
+      await oops.init();
     });
 
     test('should start tracking a file', async () => {
-      const trackingInfo = await oops.begin(testFile);
+      const trackingInfo = await oops.track(testFile);
 
       expect(trackingInfo.filePath).toBe(testFile);
       expect(trackingInfo.isTracked).toBe(true);
@@ -100,12 +100,12 @@ describe('Oops Core SDK', () => {
     test('should check if file is tracked', async () => {
       expect(await oops.isTracked(testFile)).toBe(false);
 
-      await oops.begin(testFile);
+      await oops.track(testFile);
       expect(await oops.isTracked(testFile)).toBe(true);
     });
 
     test('should get tracking info', async () => {
-      await oops.begin(testFile);
+      await oops.track(testFile);
       const trackingInfo = await oops.getTrackingInfo(testFile);
 
       expect(trackingInfo.filePath).toBe(testFile);
@@ -116,8 +116,8 @@ describe('Oops Core SDK', () => {
       const file2 = path.join(tempDir, 'test2.txt');
       await FileSystem.writeFile(file2, 'Hello World 2');
 
-      await oops.begin(testFile);
-      await oops.begin(file2);
+      await oops.track(testFile);
+      await oops.track(file2);
 
       const trackedFiles = await oops.getAllTrackedFiles();
       expect(trackedFiles).toHaveLength(2);
@@ -128,20 +128,20 @@ describe('Oops Core SDK', () => {
     test('should throw error when tracking non-existent file', async () => {
       const nonExistentFile = path.join(tempDir, 'non-existent.txt');
 
-      await expect(oops.begin(nonExistentFile)).rejects.toThrow();
+      await expect(oops.track(nonExistentFile)).rejects.toThrow();
     });
 
     test('should throw error when tracking already tracked file', async () => {
-      await oops.begin(testFile);
+      await oops.track(testFile);
 
-      await expect(oops.begin(testFile)).rejects.toThrow();
+      await expect(oops.track(testFile)).rejects.toThrow();
     });
   });
 
   describe('File Changes and Diff', () => {
     beforeEach(async () => {
-      await oops.initWorkspace();
-      await oops.begin(testFile);
+      await oops.init();
+      await oops.track(testFile);
     });
 
     test('should detect changes', async () => {
@@ -174,8 +174,8 @@ describe('Oops Core SDK', () => {
 
   describe('Keep and Undo Operations', () => {
     beforeEach(async () => {
-      await oops.initWorkspace();
-      await oops.begin(testFile);
+      await oops.init();
+      await oops.track(testFile);
     });
 
     test('should keep changes', async () => {
@@ -241,7 +241,7 @@ describe('Oops Core SDK', () => {
     let file3: string;
 
     beforeEach(async () => {
-      await oops.initWorkspace();
+      await oops.init();
 
       file2 = path.join(tempDir, 'test2.txt');
       file3 = path.join(tempDir, 'test3.txt');
@@ -249,9 +249,9 @@ describe('Oops Core SDK', () => {
       await FileSystem.writeFile(file2, 'Hello World 2');
       await FileSystem.writeFile(file3, 'Hello World 3');
 
-      await oops.begin(testFile);
-      await oops.begin(file2);
-      await oops.begin(file3);
+      await oops.track(testFile);
+      await oops.track(file2);
+      await oops.track(file3);
     });
 
     test('should keep all files', async () => {
@@ -296,11 +296,11 @@ describe('Oops Core SDK', () => {
 
   describe('File Validation', () => {
     beforeEach(async () => {
-      await oops.initWorkspace();
+      await oops.init();
     });
 
     test('should validate tracked files', async () => {
-      await oops.begin(testFile);
+      await oops.track(testFile);
 
       const validation = await oops.validateTrackedFiles();
       expect(validation.valid).toBe(true);
@@ -308,7 +308,7 @@ describe('Oops Core SDK', () => {
     });
 
     test('should detect invalid tracked files', async () => {
-      await oops.begin(testFile);
+      await oops.track(testFile);
 
       // Delete the file
       const fs = await import('fs/promises');

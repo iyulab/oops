@@ -26,7 +26,7 @@ export class TrackCommand extends BaseCommand {
       const workspaceInfo = await oops.getWorkspaceInfo();
       if (!workspaceInfo.exists) {
         this.log('✨ Creating temporary workspace at: ' + workspaceInfo.path);
-        await oops.initWorkspace();
+        await oops.init();
       }
 
       // Check if file exists
@@ -34,8 +34,7 @@ export class TrackCommand extends BaseCommand {
       try {
         await fs.access(filePath);
       } catch {
-        this.error(`File not found: ${filePath}`);
-        return;
+        throw new Error(`File not found: ${filePath}`);
       }
 
       // Check tracking status and respond accordingly
@@ -50,8 +49,8 @@ export class TrackCommand extends BaseCommand {
         this.log(`💡 Edit the file and run 'oops diff ${path.basename(filePath)}' to see changes`);
       } else {
         // Start tracking new file
-        this.log(`📁 Backup created for ${path.basename(filePath)}`);
-        await oops.begin(filePath);
+        await oops.track(filePath);
+        this.log(`Backup created for ${path.basename(filePath)}`);
 
         this.log(`🎯 Ready to edit safely!`);
         this.log(`💡 Edit with any editor, then run 'oops diff ${path.basename(filePath)}'`);

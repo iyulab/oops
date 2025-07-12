@@ -24,7 +24,7 @@ export class DiffCommand extends BaseCommand {
       // Check if workspace exists
       const workspaceInfo = await oops.getWorkspaceInfo();
       if (!workspaceInfo.exists) {
-        this.error('No workspace found. Run "oops init" to initialize a workspace.');
+        this.error('No workspace found. Run "oops <file>" to start tracking a file.');
         return;
       }
 
@@ -32,7 +32,7 @@ export class DiffCommand extends BaseCommand {
       const isTracked = await oops.isTracked(filePath);
       if (!isTracked) {
         this.error(`File is not being tracked: ${filePath}`);
-        this.log('Run "oops begin <file>" to start tracking.');
+        this.log('Run "oops <file>" to start tracking.');
         return;
       }
 
@@ -80,7 +80,6 @@ export class DiffCommand extends BaseCommand {
           }
         }
       }
-
     } catch (error: any) {
       this.error('Failed to generate diff: ' + error.message);
       throw error;

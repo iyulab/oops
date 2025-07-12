@@ -25,7 +25,7 @@ export class Oops {
   }
 
   // Workspace operations
-  public async initWorkspace(): Promise<void> {
+  public async init(): Promise<void> {
     await this.workspaceManager.init();
   }
 
@@ -46,7 +46,7 @@ export class Oops {
   }
 
   // File tracking operations
-  public async begin(filePath: string, message?: string): Promise<FileTrackingInfo> {
+  public async track(filePath: string, message?: string): Promise<FileTrackingInfo> {
     return await this.fileTracker.startTracking(filePath, message);
   }
 

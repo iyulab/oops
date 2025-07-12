@@ -23,7 +23,8 @@ export class StatusCommand extends BaseCommand {
       const workspaceInfo = await oops.getWorkspaceInfo();
 
       if (!workspaceInfo.exists) {
-        this.log('❌ No workspace found. Run "oops init" to initialize a workspace.');
+        this.log('Workspace: Not initialized');
+        this.log('No files being tracked');
         return;
       }
 
@@ -32,7 +33,7 @@ export class StatusCommand extends BaseCommand {
         return;
       }
 
-      this.log('✓ Workspace: ' + workspaceInfo.path);
+      this.log('Workspace: ' + workspaceInfo.path);
 
       // Display tracked files
       if (workspaceInfo.trackedFiles.length === 0) {
