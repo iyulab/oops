@@ -34,7 +34,7 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@iyulab/oops": "file:../core",
+    "@iyulab/oops": "^0.1.2",
     "chalk": "^4.1.2",
     "commander": "^12.0.0"
   },
