@@ -1,6 +1,6 @@
 {
   "name": "@iyulab/oops-cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CLI for Oops - Safe text file editing with automatic backup",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
