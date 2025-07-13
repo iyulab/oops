@@ -415,3 +415,5 @@ CLAUDE.md
 test-oops/
 
 tsconfig.tsbuildinfo
+packages/cli/tsconfig.tsbuildinfo
+packages/core/tsconfig.tsbuildinfo
