@@ -1,382 +1,646 @@
----
+# Oops Commands Reference
 
-## 옵션 및 플래그
-
-| 옵션 | 적용 명령어 | 기능 |
-|------|-------------|------|
-| `--quiet` | 모든 명령어 | 최소한의 출력 |
-| `--help` | 모든 명령어 | 도움말 표시 |
-| `--no-color` | `diff`, `log` | 색상 비활성화 |
-| `--tool <tool>` | `diff` | 외부 diff 도구 사용 |
-| `--graph` | `log` | 그래프 형태로 히스토리 표시 |
-| `--oneline` | `log` | 한 줄로 간략히 표시 |# Oops Commands Reference
+Complete command documentation for Git-style single file versioning.
 
 ## Command Overview
 
 Oops provides **8 essential commands** using familiar Git syntax for complete file versioning lifecycle. If you know Git, you already know Oops.
 
-## 핵심 명령어
+### All Commands at a Glance
 
-| 명령어 | 축약형 | 기능 | 설명 | Git 유사 명령어 |
-|--------|--------|------|------|----------------|
-| `oops track <file>` | `oops <file>` | 추적 시작 | 파일 버전 관리 시작, 버전 1 생성 | `git init` + `git add` |
-| `oops commit [msg]` | - | 버전 생성 | 현재 상태를 새 버전으로 저장 | `git commit` |
-| `oops checkout <ver>` | - | 버전 이동 | 특정 버전으로 파일 상태 변경 | `git checkout` |
-| `oops diff [ver]` | - | 변경사항 비교 | 현재와 특정 버전 간 차이 표시 | `git diff` |
-| `oops log` | - | 히스토리 보기 | 모든 버전의 시간순 목록 표시 | `git log` |
+| Command | Purpose | Usage | Git Equivalent | Description |
+|---------|---------|-------|----------------|-------------|
+| **Core Commands** | | | | |
+| `track <file>` | Start versioning | `oops track config.txt` | `git init && git add` | Creates version 1, begins tracking |
+| `commit [msg]` | Save checkpoint | `oops commit "update"` | `git commit -m` | Creates next version (2,3,4...) |
+| `checkout <ver>` | Navigate history | `oops checkout 2` | `git checkout` | Switch to any version |
+| `diff [ver]` | Compare versions | `oops diff 1` | `git diff` | Show changes between versions |
+| `log` | View timeline | `oops log` | `git log --oneline` | List all versions chronologically |
+| **Completion Commands** | | | | |
+| `untrack <file>` | Stop tracking | `oops untrack config.txt` | `rm -rf .git` | Keep current, remove history |
+| `keep <file>` | Stop tracking | `oops keep config.txt` | (same as untrack) | Alias for untrack |
+| `undo <file> [ver]` | Restore & stop | `oops undo config.txt 2` | `git reset --hard` | Restore version, stop tracking |
 
-## 종료 명령어
+### Command Categories
 
-| 명령어 | 기능 | 동작 | 파일 상태 | .git 폴더 |
-|--------|------|------|-----------|----------|
-| `oops untrack <file>` | 추적 중단 | 현재 상태 유지하며 추적 종료 | 현재 상태 유지 | 삭제 |
-| `oops keep <file>` | 추적 중단 | untrack과 동일 (별칭) | 현재 상태 유지 | 삭제 |
-| `oops undo <file>` | 되돌리고 종료 | 최근 커밋으로 복원 후 추적 종료 | 최근 커밋 상태 | 삭제 |
-| `oops undo <file> <ver>` | 특정 버전 복원 | 지정 버전으로 복원 후 추적 종료 | 지정 버전 상태 | 삭제 |
+**Core Commands (5)** - Main versioning workflow
+- `track <file>` - Start versioning (creates version 1)
+- `commit [message]` - Create new version checkpoint  
+- `checkout <version>` - Navigate to any version in history
+- `diff [version]` - Compare versions and show changes
+- `log` - View complete version timeline
+
+**Completion Commands (3)** - End versioning workflow
+- `untrack <file>` - Stop tracking, keep current state
+- `keep <file>` - Alias for untrack
+- `undo <file> [version]` - Restore to version and stop tracking
 
 ---
 
 ## Core Commands
 
-### `oops track <file>` (축약: `oops <file>`)
+### `oops track <file>`
 **Start versioning a file**
 
+Initialize version management for any text file, creating the initial version.
+
 ```bash
-oops track config.txt
-oops config.txt          # Short form
-oops script.py
+oops track config.txt           # Start versioning
+oops track /etc/nginx.conf      # Works with absolute paths
+oops script.py                  # Short form (auto-detects track)
 ```
 
-**Behavior:**
-- Creates version 1 if file not yet versioned
-- Shows current status if already versioning
+**What it does:**
+- Creates workspace automatically (first time)
+- Initializes Git repository for the file
+- Creates version 1 from current file content
 - Sets up invisible versioning infrastructure
-- Works with any text file
 
-**Git Comparison:**
+**Git equivalent:**
 ```bash
-# Git                    # Oops
-git init && git add file  oops track file
+# Git workflow                  # Oops equivalent
+git init                        oops track myfile.txt
+git add myfile.txt
+git commit -m "Initial version"
 ```
 
-**First time:** Creates version 1 and shows getting started tips
-**Already versioned:** Shows current version and change status
+**Output example:**
+```
+✓ Started tracking config.txt (version 1)
+→ Edit the file and run 'oops commit' to create version 2
+```
+
+**Smart behavior:**
+- **First time**: Creates version 1 and shows getting started tips
+- **Already tracking**: Shows current status and position in history
+- **Auto-workspace**: Creates workspace if it doesn't exist
 
 ---
 
 ### `oops commit [message]`
 **Create a new version checkpoint**
 
-```bash
-oops commit
-oops commit "added database config"
-```
-
-**Git Comparison:**
-```bash
-# Git                    # Oops
-git commit -m "msg"      oops commit "msg"
-git add . && git commit  oops commit
-```
-
-**Versioning Logic:**
-- **Sequential**: 1 → 2 → 3 → 4 → 5...
-- **Simple increment**: Each commit creates the next sequential number
-- **Auto-description**: Analyzes changes if no message provided
-- **Linear progression**: Clean, predictable version numbers
-
-**Requirements:** File must have changes since last version
-
----
-
-### `oops diff [version]`
-**Show what changed**
+Save current state as the next sequential version in history.
 
 ```bash
-oops diff           # Compare with previous version
-oops diff 3         # Compare current with version 3
-oops diff --tool code        # Open in VS Code
-oops diff | less             # Pipe to pager like Git
+oops commit                     # Auto-generated message
+oops commit "added SSL config"  # Custom message
+oops commit "fixed bug #123"    # With issue reference
 ```
 
-**Git Comparison:**
+**Versioning logic:**
+- **Sequential numbering**: 1 → 2 → 3 → 4 → 5...
+- **Linear progression**: Each commit creates next number
+- **No branching**: Simple, predictable version numbers
+- **Smart descriptions**: Analyzes changes if no message provided
+
+**Git equivalent:**
 ```bash
-# Git                    # Oops
-git diff HEAD~1        oops diff
-git diff v3            oops diff 3
-git diff --tool=code   oops diff --tool code
+# Git workflow                  # Oops equivalent
+git add .                       oops commit "message"
+git commit -m "message"
 ```
 
-**Display:**
-- Standard Git diff format (compatible with existing tools)
-- Familiar `---`/`+++` headers and `@@` hunks
-- Standard color coding (red for removed, green for added)
-- Works with external diff tools and Git-aware editors
+**Output example:**
+```
+✓ Created version 3: added SSL config
+  config.txt: 15 lines added, 3 lines modified
+  → Run 'oops log' to see full history
+```
+
+**Requirements:**
+- File must have changes since last version
+- File must be currently tracked
 
 ---
 
 ### `oops checkout <version>`
 **Navigate to any version in history**
 
+Switch file content to any version, allowing you to view or continue from that point.
+
 ```bash
-oops checkout 3     # Go to version 3
-oops checkout 5     # Go to version 5
-oops checkout HEAD  # Go to latest version
+oops checkout 1                 # Go to version 1 (original)
+oops checkout 3                 # Go to version 3
+oops checkout HEAD              # Go to latest version
 ```
 
-**Git Comparison:**
-```bash
-# Git                    # Oops
-git checkout main       oops checkout HEAD
-git checkout v5         oops checkout 5
-git checkout <commit>   oops checkout 3
-```
-
-**Behavior:**
+**Navigation behavior:**
 - Updates file content immediately
-- Shows where you moved to
-- Standard Git checkout semantics
+- Shows what version you're now on
+- Allows editing and committing from any point
+- Creates next sequential version when you commit
 
-**Note:** After checkout, you can edit and commit to create the next version
+**Git equivalent:**
+```bash
+# Git workflow                  # Oops equivalent
+git checkout HEAD~2             oops checkout 3
+git checkout main               oops checkout HEAD
+git checkout <commit-hash>      oops checkout 5
+```
+
+**Output example:**
+```
+✓ Switched to version 1
+  config.txt updated to version 1 content
+  → Edit and commit to create version 4
+```
+
+**Linear workflow:**
+```bash
+# At version 3, checkout version 1
+oops checkout 1
+# Edit file...
+oops commit "alternative approach"    # Creates version 4
+oops log                             # Shows: 4, 3, 2, 1
+```
+
+---
+
+### `oops diff [version]`
+**Compare versions and show changes**
+
+Show differences between file states using standard Git diff format.
+
+```bash
+oops diff                       # Working changes vs current version
+oops diff 1                     # Current file vs version 1
+oops diff 1 3                   # Compare version 1 with version 3
+oops diff --tool code           # Open in external diff tool
+```
+
+**Comparison modes:**
+- **No args**: Working changes (if any) vs current version
+- **One version**: Current file content vs specified version
+- **Two versions**: Compare two specific versions
+- **External tools**: Use `--tool` for visual diff viewers
+
+**Git equivalent:**
+```bash
+# Git workflow                  # Oops equivalent
+git diff                        oops diff
+git diff HEAD~2                 oops diff 3
+git diff HEAD~2 HEAD~1          oops diff 3 2
+git difftool --tool=code        oops diff --tool code
+```
+
+**Output format:**
+- Standard Git diff format (compatible with existing tools)
+- Familiar `---`/`+++` headers and `@@` hunks
+- Color coding (red for removed, green for added)
+- Works with Git-aware editors and tools
+
+**Example output:**
+```
+diff --git a/config.txt b/config.txt
+--- a/config.txt (version 1)
++++ b/config.txt (version 3)
+@@ -1,3 +1,4 @@
+ host=localhost
+ port=8080
++ssl=true
+ debug=false
+```
 
 ---
 
 ### `oops log`
-**Show visual version timeline**
+**View complete version timeline**
+
+Show chronological history of all versions with Git-style output.
 
 ```bash
-oops log
-oops log --oneline
-oops log --graph
+oops log                        # Full history
+oops log --oneline              # Compact format
+oops log --graph                # Visual timeline (future)
 ```
 
-**Git Comparison:**
-```bash
-# Git                    # Oops
-git log --oneline       oops log
-git log --graph         oops log --graph
-git log --decorate      oops log
-```
-
-**Display:**
-- Standard Git log format with commit hashes and tags
-- Familiar timeline layout that Git users recognize
+**Display features:**
+- All versions in reverse chronological order
+- Commit messages and timestamps
+- Current position indicator (HEAD)
+- Standard Git log format
 - Compatible with Git visualization tools
-- Standard `git log --oneline --graph` style output
-- Shows version tags as Git tags
 
-**Example Output:**
+**Git equivalent:**
+```bash
+# Git workflow                  # Oops equivalent
+git log --oneline               oops log
+git log --graph --oneline       oops log --graph
+git log --decorate              oops log
 ```
-* 5 (HEAD, tag: v5) Final cleanup  
-* 4 (tag: v4) Added SSL config
-* 3 (tag: v3) Database settings
-* 2 (tag: v2) Configuration updates
-* 1 (tag: v1) Initial version
+
+**Example output:**
+```
+* 5 (HEAD) Final cleanup
+* 4 Added SSL config  
+* 3 Database settings
+* 2 Configuration updates
+* 1 Initial version
+```
+
+**Timeline navigation:**
+```bash
+oops log                        # See what's available
+oops checkout 2                 # Go to version 2
+oops diff 1                     # Compare with original
+oops checkout HEAD              # Return to latest
 ```
 
 ---
 
-## Simple Versioning System
+## Completion Commands
 
-### Version Number Format
+These commands stop version tracking and clean up the workspace.
 
-**Sequential Progression:**
-```
-1 → 2 → 3 → 4 → 5 → 6...
-```
+### `oops untrack <file>`
+**Stop tracking, keep current state**
 
-**Clean and Predictable:**
-- No complex branching numbers
-- Easy to understand and remember
-- Each commit increments by 1
-- Linear progression always
-
-### Smart Description Generation
-
-Oops automatically analyzes your changes:
-- "Added 15 lines"
-- "Modified database section"  
-- "Removed debug code, added error handling"
-- "Major refactoring (45 lines changed)"
-
-You can always add your own note: `oops save "fixed SSL configuration"`
-
----
-
-### 종료 명령어들
-
-#### `oops untrack <file>`
-**Stop tracking file (keep current state)**
+Stop version management while preserving the file in its current state.
 
 ```bash
 oops untrack config.txt
 ```
 
-**Behavior:**
+**What it does:**
 - Stops version tracking
 - Keeps file in current state
-- Removes all version history
-- File remains unchanged
+- Removes version history and workspace
+- File content remains unchanged
 
-#### `oops keep <file>`
+**Use cases:**
+- Finished experimenting, want to keep current version
+- Project complete, no more versioning needed
+- Want to clean up workspace
+
+---
+
+### `oops keep <file>`
 **Alias for untrack**
 
-```bash
-oops keep config.txt    # Same as untrack
-```
-
-#### `oops undo <file> [version]`
-**Restore and stop tracking**
+Same functionality as `untrack` - stops tracking and keeps current state.
 
 ```bash
-oops undo config.txt       # Restore to latest commit
-oops undo config.txt 1.2   # Restore to specific version
+oops keep config.txt            # Same as untrack
 ```
 
-**Behavior:**
-- Restores file to specified version (or latest)
+**Semantic difference:**
+- `untrack`: Technical operation (stop tracking)
+- `keep`: Semantic operation (keep this version)
+
+---
+
+### `oops undo <file> [version]`
+**Restore to version and stop tracking**
+
+Restore file to a specific version (or latest) and stop version management.
+
+```bash
+oops undo config.txt            # Restore to latest version
+oops undo config.txt 1          # Restore to version 1
+oops undo config.txt 3          # Restore to version 3
+```
+
+**What it does:**
+- Restores file content to specified version
 - Stops version tracking
-- Removes all version history
+- Removes version history and workspace
 - File content changes to restored version
 
----
-
-## 전체 워크플로우 예시
-
-| 단계 | 명령어 | 결과 | 버전 |
-|------|--------|------|------|
-| 1 | `oops config.txt` | 추적 시작 | 1 |
-| 2 | 파일 편집 | - | - |
-| 3 | `oops commit` | 새 버전 생성 | 2 |
-| 4 | 파일 편집 | - | - |
-| 5 | `oops commit "SSL added"` | 메시지와 함께 버전 생성 | 3 |
-| 6 | `oops checkout 2` | 이전 버전으로 이동 | 2 |
-| 7 | 파일 편집 | - | - |
-| 8 | `oops commit` | 새 버전 생성 | 4 |
-| 9 | `oops log` | 전체 히스토리 확인 | - |
-| 10 | `oops keep config.txt` | 작업 완료, 추적 종료 | 현재 상태 유지 |
-
-## Common Workflows
-
-### Linear Editing
-```bash
-oops document.txt    # 1
-# edit...
-oops commit         # 2
-# edit...  
-oops commit         # 3
-```
-
-### Working with History
-```bash
-# Currently at version 5
-oops checkout 3     # Go to version 3
-# try different approach...
-oops commit         # Creates version 6
-# continue editing...
-oops commit         # Creates version 7
-```
-
-### Navigation and Comparison
-```bash
-oops log            # See timeline
-oops checkout 3     # Go to version 3
-oops diff 1         # Compare with original
-oops checkout HEAD  # Go to latest
-```
-
-### Quick Recovery
-```bash
-oops log            # What happened?
-oops checkout 4     # Go to known good state
-oops commit         # Create next version
-```
-
-### Git Tool Integration
-
-Oops outputs use standard Git formats for maximum compatibility:
-
-**Diff Output**: Standard `git diff` format
-- Works with `diff` tools, syntax highlighters
-- Compatible with IDE diff viewers
-- Pipeable to Git-aware tools
-
-**History Output**: Standard `git log` format  
-- Compatible with Git visualization tools
-- Works with existing Git aliases and scripts
-- Standard commit hash and tag references
-
-**External Tool Support**:
-- `--tool` option delegates to Git's difftool
-- Respects Git's tool configuration
-- Works with any Git-compatible diff viewer
+**Use cases:**
+- Want to revert to a known good state
+- Experiment went wrong, need to start over
+- Want specific version as final state
 
 ---
 
-## 버전 번호 체계
+## Version Management
 
-| 상황 | 버전 형태 | 예시 |
-|------|-----------|------|
-| 순차적 진행 | 정수 | 1 → 2 → 3 → 4 → 5 |
-| 모든 상황 | 단순 증가 | 계속해서 다음 번호로 증가 |
+### Simple Sequential System
 
-## 상태별 가능한 명령어
+Oops uses straightforward integer progression:
 
-| 현재 상태 | 가능한 명령어 | 불가능한 명령어 |
-|-----------|---------------|----------------|
-| 추적 안함 | `track`, `<file>` | 나머지 모든 명령어 |
-| 추적 중 (변경사항 없음) | `checkout`, `log`, `untrack`, `keep`, `undo` | `commit` (변경사항 없음) |
-| 추적 중 (변경사항 있음) | 모든 명령어 | 없음 |
-| 과거 버전 위치 | `commit` (새 버전 생성), `checkout`, `log`, 종료 명령어들 | 없음 |
+```
+Start: file.txt → Version 1
+Edit & commit → Version 2
+Edit & commit → Version 3
+Edit & commit → Version 4
+...and so on
+```
 
-## Error Prevention
+**Benefits:**
+- **Easy to understand**: No complex branching rules
+- **Predictable**: Always know what the next version will be
+- **Simple navigation**: `checkout 1`, `checkout 3`, etc.
+- **Linear history**: Clear timeline of changes
 
-### Smart Validations
-- Can't commit without changes
-- Can't checkout non-existent versions
-- Clear error messages with helpful suggestions
-- Standard Git-style error messages
+### Navigation Workflow
 
-### 에러 상황별 대응
+```bash
+# Complete workflow example
+oops track document.txt         # Version 1 created
 
-| 에러 상황 | 명령어 | 결과 |
-|-----------|--------|------|
-| 파일이 존재하지 않음 | `oops track missing.txt` | 에러 메시지 + 파일 생성 안내 |
-| 이미 추적 중 | `oops track config.txt` | 현재 상태 표시 |
-| 변경사항 없음 | `oops commit` | 에러 메시지 + 편집 안내 |
-| 잘못된 버전 번호 | `oops checkout 999` | 에러 메시지 + 가능한 버전 목록 |
-| 손상된 .git 폴더 | 모든 명령어 | 자동 복구 시도 또는 재시작 안내 |
+# Development cycle
+vim document.txt
+oops commit "first draft"       # Version 2
 
-### Safety Features
-- File existence validation
-- Permission checking
-- Atomic operations (never lose data)
-- Self-healing if corruption detected
+vim document.txt
+oops commit "added intro"       # Version 3
+
+# Go back to experiment
+oops checkout 1                 # Switch to version 1
+vim document.txt
+oops commit "different approach" # Version 4
+
+# Review history
+oops log                        # Shows: 4, 3, 2, 1
+
+# Compare versions
+oops diff 1 3                   # Original vs intro version
+oops diff 1 4                   # Original vs alternative
+
+# Decide and finish
+oops checkout 4                 # Use alternative approach
+oops keep document.txt          # Stop tracking, keep version 4
+```
 
 ---
 
-## Integration Notes
+## Command Options
 
-### Works With Any Editor
-- vim, nano, emacs
-- VS Code, Sublime Text
-- Word processors that save plain text
-- Any tool that edits text files
+### Global Options
 
-### File System Integration
-- No special file formats
-- Your files remain normal text files
-- Versioning data stored separately
-- No clutter in your project directories
+Available with all commands:
+
+```bash
+--workspace <path>              # Use specific workspace directory
+--verbose, -v                   # Enable verbose output
+--quiet, -q                     # Suppress non-error output
+--no-color                      # Disable colored output
+--help, -h                      # Show command help
+```
+
+### Command-Specific Options
+
+**diff command:**
+```bash
+--tool <tool>                   # Use external diff tool
+--no-color                      # Disable diff colors
+```
+
+**log command:**
+```bash
+--oneline                       # Compact one-line format
+--graph                         # Visual timeline (future)
+```
+
+**Examples:**
+```bash
+# Use VS Code for diff
+oops diff --tool code
+
+# Quiet operation
+oops --quiet commit "update"
+
+# Custom workspace
+oops --workspace .oops track file.txt
+```
+
+---
+
+## Command State Matrix
+
+### What commands work when:
+
+| Current State | Available Commands | Unavailable Commands |
+|---------------|-------------------|---------------------|
+| **Not tracking** | `track` | All others |
+| **Tracking, no changes** | `checkout`, `log`, `diff`, `untrack`, `keep`, `undo` | `commit` (no changes) |
+| **Tracking, has changes** | All commands | None |
+| **At past version** | All commands | None |
+
+### State transitions:
+
+```bash
+# Not tracking → Tracking
+oops track file.txt             # Creates version 1
+
+# Tracking → Has changes
+vim file.txt                    # Edit file
+
+# Has changes → New version
+oops commit                     # Creates version 2
+
+# Any version → Past version
+oops checkout 1                 # Navigate to version 1
+
+# Tracking → Not tracking
+oops untrack file.txt           # Stop tracking
+oops keep file.txt              # Stop tracking (alias)
+oops undo file.txt 2            # Restore version 2 and stop
+```
+
+---
+
+## Error Handling
+
+### Common Errors and Solutions
+
+**"File not found"**
+```bash
+oops track missing.txt
+# Error: File 'missing.txt' not found
+# Solution: Create the file first or use correct path
+```
+
+**"File not tracked"**
+```bash
+oops commit
+# Error: No tracked files found
+# Solution: Use 'oops track <file>' first
+```
+
+**"No changes to commit"**
+```bash
+oops commit
+# Error: No changes detected since last version
+# Solution: Edit the file first
+```
+
+**"Invalid version"**
+```bash
+oops checkout 999
+# Error: Version 999 does not exist (available: 1, 2, 3)
+# Solution: Use 'oops log' to see available versions
+```
+
+### Smart Error Messages
+
+Oops provides helpful guidance with every error:
+
+```bash
+oops commit
+# Error: No changes detected in tracked files
+# 
+# To create a new version:
+#   1. Edit your tracked files
+#   2. Run 'oops commit' again
+# 
+# To see current status:
+#   oops log
+```
+
+---
+
+## Integration and Compatibility
+
+### Git Tool Compatibility
+
+Oops outputs use standard Git formats:
+
+```bash
+# Standard Git diff format
+oops diff | less                # Works with pagers
+oops diff | git apply           # Can apply diffs
+oops diff --tool meld           # External diff viewers
+
+# Standard Git log format
+oops log | grep "SSL"           # Search history
+oops log --oneline | head -5    # Latest 5 versions
+```
+
+### External Diff Tools
+
+Supports any Git-compatible diff tool:
+
+```bash
+# Popular diff tools
+oops diff --tool code           # VS Code
+oops diff --tool vimdiff        # Vim
+oops diff --tool meld           # Meld
+oops diff --tool beyond         # Beyond Compare
+
+# Configure default tool
+export OOPS_DIFF_TOOL=code
+oops diff                       # Uses VS Code
+```
+
+### Editor Integration
+
+Works seamlessly with any text editor:
+
+```bash
+# Command line editors
+vim, nano, emacs, micro
+
+# GUI editors
+code, subl, atom, notepad++
+
+# IDEs
+idea, webstorm, eclipse, vscode
+```
+
+---
+
+## Workflow Examples
+
+### Configuration Management
+
+```bash
+# Safe system config changes
+oops track /etc/nginx/nginx.conf   # Start tracking
+sudo vim /etc/nginx/nginx.conf     # Make changes
+nginx -t                           # Test configuration
+oops commit "enabled SSL"          # Save if test passes
+
+# If something breaks later
+oops log                           # See what changed
+oops checkout 1                    # Restore working config
+sudo systemctl reload nginx       # Apply safe config
+```
+
+### Script Development
+
+```bash
+# Iterative script development
+oops track deploy.sh               # Version 1
+vim deploy.sh                      # Add features
+oops commit "added backup"         # Version 2
+vim deploy.sh                      # More features  
+oops commit "added rollback"       # Version 3
+
+# Test different approaches
+oops checkout 1                    # Start from original
+vim deploy.sh                      # Try different method
+oops commit "alternative method"   # Version 4
+
+# Compare approaches
+oops diff 2 4                      # Compare backup vs alternative
+oops checkout 4                    # Choose alternative
+oops keep deploy.sh                # Finish with version 4
+```
+
+### Document Writing
+
+```bash
+# Essay or documentation
+oops track article.md              # Start tracking
+vim article.md                     # Write first draft
+oops commit "first draft"          # Version 2
+vim article.md                     # Revisions
+oops commit "added examples"       # Version 3
+
+# Major restructure
+oops checkout 2                    # Back to first draft
+vim article.md                     # Reorganize completely
+oops commit "restructured"         # Version 4
+
+# Compare versions
+oops diff 2 3                      # Draft vs examples
+oops diff 2 4                      # Draft vs restructured
+oops checkout 4                    # Use restructured version
+```
 
 ---
 
 ## Command Design Principles
 
-1. **Git Compatibility**: Commands match Git for zero learning curve
-2. **Smart Defaults**: Minimal required arguments
-3. **Helpful Output**: Every command provides clear next steps
-4. **Error Recovery**: Mistakes are easy to undo
-5. **Visual Feedback**: See your progress and position clearly
+1. **Git Familiarity**: Use commands developers already know
+2. **Linear Simplicity**: Sequential numbering without complex branching
+3. **Standard Output**: Git-compatible formats for tool integration
+4. **Smart Defaults**: Minimal required arguments, helpful guidance
+5. **Safe Operations**: Atomic commits, easy navigation, clear errors
 
-The goal is to make versioning so simple that you use it automatically, without thinking about it.
+The goal is to provide powerful single-file versioning using familiar Git commands with simplified workflow.
+
+---
+
+## Quick Reference
+
+### Essential Workflow
+```bash
+oops track <file>               # Start (version 1)
+# edit file...
+oops commit ["message"]         # Next version
+oops log                        # See history
+oops checkout <version>         # Navigate
+oops diff [version]             # Compare
+oops keep <file>                # Finish
+```
+
+### Navigation
+```bash
+oops log                        # See all versions
+oops checkout 1                 # Go to version 1
+oops checkout HEAD              # Go to latest
+oops diff 1 3                   # Compare versions
+```
+
+### Completion
+```bash
+oops untrack <file>             # Stop, keep current
+oops keep <file>                # Same as untrack
+oops undo <file> [version]      # Restore and stop
+```
+
+**Remember**: If you know Git commands, you already know Oops!

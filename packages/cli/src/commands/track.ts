@@ -1,5 +1,5 @@
 /**
- * Track command - Start versioning a file (creates version 1.0)
+ * Track command - Start versioning a file (creates version 1)
  * Handles both `oops track <file>` and `oops <file>` patterns
  */
 
@@ -60,7 +60,7 @@ export class TrackCommand extends BaseCommand {
         this.log('  oops checkout <version> - Navigate to specific version');
       } catch (error: any) {
         if (error.message.includes('not being tracked')) {
-          // Start tracking new file - create version 1.0
+          // Start tracking new file - create version 1
           const result = await oops.trackWithVersion(filePath, 'Initial version');
 
           // Also add to legacy tracking system so commit can find it

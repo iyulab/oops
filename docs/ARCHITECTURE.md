@@ -2,15 +2,15 @@
 
 ## Design Philosophy
 
-Oops bridges the gap between simple file editing and powerful version control by hiding Git's complexity behind intuitive commands and automatic versioning.
+Oops provides Git-style single file versioning with simple linear progression and familiar commands. It bridges the gap between basic file editing and powerful version control.
 
 ### Core Principles
 
-- **Zero Learning Curve**: Git's familiar commands without Git's complexity
+- **Familiar Commands**: Git syntax users already know (track, commit, checkout, diff, log)
 - **Single File Focus**: Eliminates multi-file coordination complexity
-- **Invisible Infrastructure**: Users never see Git repositories or technical details
-- **Auto-Everything**: Smart defaults eliminate decisions
-- **Git Compatibility**: Standard Git log output you already know
+- **Simple Versioning**: Linear progression (1→2→3→4) without complex branching
+- **Hidden Infrastructure**: Git repositories managed transparently
+- **Standard Output**: Git-compatible formats for tool integration
 - **Local First**: No network dependencies, works offline
 
 ---
@@ -43,11 +43,11 @@ Oops bridges the gap between simple file editing and powerful version control by
 - **Output**: Standard Git output formats with familiar messaging
 - **Error Handling**: Git-style error messages with helpful suggestions
 
-### 2. Auto-Versioning Engine
-- **Version Generation**: Automatic numbering (1.0 → 1.1 → 1.2)
-- **Branch Detection**: Creates branches when editing after navigation
-- **Change Analysis**: Generates smart descriptions of modifications
-- **Git Integration**: Uses standard Git formats for output compatibility
+### 2. Simple Version System
+- **Linear Progression**: Sequential numbering (1→2→3→4)
+- **No Complex Branching**: Simplified workflow for single file editing
+- **Change Tracking**: Git-powered diff and history management
+- **Standard Output**: Git-compatible log and diff formats
 
 ### 3. Command Processors
 Each command has dedicated logic:
@@ -80,9 +80,9 @@ User Edit → Change Detection → Version Generation → Git Commit → Update 
 User Command → Validate Target → Git Checkout → Update File → Show Status
 ```
 
-### Auto-Branching Logic
+### Simple Navigation Logic
 ```
-Current: 1.3 → Back to 1.1 → Edit & Save → Creates 1.1.1 (branch)
+Current: Version 3 → Checkout Version 1 → Edit & Commit → Creates Version 4
 ```
 
 ---
@@ -91,14 +91,14 @@ Current: 1.3 → Back to 1.1 → Edit & Save → Creates 1.1.1 (branch)
 
 ### Storage Structure
 ```
-~/.oops/
-├── files/
-│   ├── config-txt-hash123/
-│   │   ├── .git/              # Hidden Git repository
-│   │   ├── metadata.json      # Version timeline and navigation
-│   │   └── current.txt         # Working copy
-│   └── script-py-hash456/
-└── global.json                # User preferences
+.oops/                         # Workspace directory
+├── config.json               # Workspace configuration
+├── state.json                # Tracking state
+└── files/                    # Per-file version storage
+    └── <file-hash>/          # Isolated file versioning
+        ├── .git/             # Git repository for this file
+        ├── backup            # Original file backup
+        └── metadata.json     # File versioning metadata
 ```
 
 ### Benefits
@@ -111,20 +111,17 @@ Current: 1.3 → Back to 1.1 → Edit & Save → Creates 1.1.1 (branch)
 
 ## Version Numbering System
 
-### Sequential Versioning
-- **Pattern**: Major.Minor (1.0, 1.1, 1.2, 1.3)
-- **Increment**: Always increases minor version
-- **Start**: Every file begins at 1.0
+### Simple Sequential Versioning
+- **Pattern**: Sequential integers (1, 2, 3, 4, 5...)
+- **Increment**: Each commit creates next number
+- **Start**: Every file begins at version 1
+- **Navigation**: Can checkout any version and continue from there
 
-### Branch Versioning
-- **Pattern**: Major.Minor.Patch (1.2.1, 1.2.2, 1.2.3)
-- **Trigger**: Edit after navigating backward
-- **Logic**: Branch from the current position
-
-### Complex Branching
-- **Pattern**: Major.Minor.Patch.Sub (1.1.1.1, 1.1.1.2)
-- **Use Case**: Branches from existing branches
-- **Depth**: Theoretically unlimited, practically limited
+### Linear Progression Benefits
+- **Simplicity**: Easy to understand and remember
+- **Predictability**: Always know what the next version will be
+- **No Conflicts**: Single file eliminates merge complexity
+- **Clear History**: Straightforward timeline of changes
 
 ---
 
@@ -151,19 +148,19 @@ Current: 1.3 → Back to 1.1 → Edit & Save → Creates 1.1.1 (branch)
 
 ---
 
-## Auto-Versioning Intelligence
+## Version Management Intelligence
 
 ### Change Detection
-- **File Monitoring**: Hash-based change detection
-- **Diff Analysis**: Line-by-line comparison
-- **Smart Descriptions**: Pattern recognition for common changes
-- **Section Detection**: Identifies modified code/content sections
+- **Git-Powered**: Leverages Git's robust diff algorithms
+- **Content Analysis**: Line-by-line comparison and change tracking
+- **Atomic Operations**: All-or-nothing commits for data safety
+- **Hash Validation**: Content integrity verification
 
-### Version Generation
-- **Context Aware**: Knows current position in timeline
-- **Branch Logic**: Automatic branch creation when appropriate
-- **Conflict Prevention**: Single file eliminates merge conflicts
-- **Recovery**: Self-healing for corrupted timelines
+### Simple Version Logic
+- **Linear Progression**: Always increments to next sequential number
+- **Position Tracking**: Knows current version and can navigate to any point
+- **No Merging**: Single file workflow eliminates merge conflicts
+- **Recovery**: Git's reliability provides automatic recovery
 
 ---
 
@@ -247,36 +244,36 @@ Current: 1.3 → Back to 1.1 → Edit & Save → Creates 1.1.1 (branch)
 
 ### Enhancement Opportunities
 - **Editor Integration**: Plugins for popular editors
-- **Advanced Navigation**: Fuzzy search, date-based navigation
-- **Export Features**: Git repository export, format conversion
-- **Tool Integration**: Enhanced Git tool compatibility and delegation
+- **Tool Integration**: External diff viewers and Git tool compatibility
+- **Export Features**: Standard Git repository export
+- **Performance**: Optimization for large files and many versions
 
 ### Architectural Constraints
-- **Single File Focus**: Intentionally limited scope
-- **Local Only**: No remote synchronization
-- **No Plugins**: Simple, focused feature set
-- **Git Dependency**: Requires Git installation
+- **Single File Focus**: Intentionally limited to individual file versioning
+- **Local Only**: No remote synchronization (may add in future)
+- **Simple Workflow**: Linear progression only, no complex branching
+- **Git Foundation**: Uses Git as reliable storage engine
 
 ---
 
 ## Implementation Guidelines
 
 ### Command Design
-- Use Git-compatible verbs (commit, checkout, log, diff)
-- Provide smart defaults with Git-style behavior
-- Show helpful next steps with familiar Git messaging
-- Handle errors gracefully with Git-style error messages
+- Use Git-compatible verbs (track, commit, checkout, diff, log)
+- Simple linear version progression (1→2→3→4)
+- Clear output with familiar Git messaging
+- Safe operations with atomic commits
 
 ### Output Design
-- **Git Format Compatibility**: Use standard Git output formats
-- **Tool Integration**: Delegate to Git tools when appropriate
-- **Consistent Experience**: Familiar format for Git users
-- **Pipeable Output**: Works with existing Git-aware tools
+- **Git Format Compatibility**: Standard Git diff and log formats
+- **Tool Integration**: Works with existing Git-aware tools
+- **Consistent Experience**: Familiar output for Git users
+- **Pipeable Output**: Compatible with Git tool ecosystem
 
 ### Storage Design
-- Isolated per-file repositories
-- Predictable directory structure
-- Cross-platform path handling
-- Automatic cleanup strategies
+- Isolated per-file Git repositories
+- Workspace-based organization
+- Cross-platform compatibility
+- Reliable Git-based storage engine
 
-This architecture balances simplicity for users with powerful functionality, using Git's proven reliability while hiding its complexity completely.
+This architecture provides powerful single-file versioning using familiar Git commands with simplified linear workflow.

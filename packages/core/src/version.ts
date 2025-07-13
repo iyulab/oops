@@ -16,7 +16,7 @@ export class VersionManager {
   }
 
   /**
-   * Initialize version tracking for a file (creates version 1.0)
+   * Initialize version tracking for a file (creates version 1)
    */
   public async initializeVersioning(filePath: string, message?: string): Promise<VersionInfo> {
     if (!(await FileSystem.exists(filePath))) {
@@ -26,7 +26,7 @@ export class VersionManager {
     const versionPath = this.getVersionPath(filePath);
     await FileSystem.mkdir(versionPath);
 
-    // Create version 1.0
+    // Create version 1
     const version = '1.0';
     const versionInfo = await this.createVersion(filePath, version, message || 'Initial version');
 
