@@ -44,19 +44,31 @@ export class LogCommand extends BaseCommand {
           this.log(`\n📁 ${path.basename(file.filePath)}:`);
 
           if (options.graph || options.oneline) {
-            // Show Git-style compact format
+            // Show Git-style compact format with branching visualization
             if (hasChanges) {
               this.log(`* ${currentVersion}+ (HEAD, tag: ${currentVersion}+) Working changes`);
             } else {
               this.log(`* ${currentVersion} (HEAD, tag: ${currentVersion}) Current version`);
             }
 
-            for (const version of versions.reverse()) {
+            // Sort versions to show branching structure
+            const sortedVersions = this.sortVersionsForDisplay(versions);
+
+            for (const versionData of sortedVersions) {
+              const version = versionData.version;
+              const indent = versionData.indent;
               const isHead = version.version === currentVersion;
               const tag = isHead
                 ? ` (HEAD, tag: ${version.version})`
                 : ` (tag: ${version.version})`;
-              this.log(`* ${version.version}${tag} ${version.message || 'No message'}`);
+
+              // Create visual branching with indentation and lines
+              const branchChar = indent === 0 ? '*' : '|\\';
+              const indentStr = '  '.repeat(indent);
+
+              this.log(
+                `${indentStr}${branchChar} ${version.version}${tag} ${version.message || 'No message'}`
+              );
             }
           } else {
             // Show detailed format
@@ -96,5 +108,66 @@ export class LogCommand extends BaseCommand {
       oneline: args.includes('--oneline'),
       decorate: args.includes('--decorate'),
     };
+  }
+
+  /**
+   * Sort versions for display with branching visualization
+   * Returns versions with indent information for proper tree display
+   */
+  private sortVersionsForDisplay(versions: any[]): Array<{ version: any; indent: number }> {
+    const sortedVersions: Array<{ version: any; indent: number }> = [];
+
+    // Separate sequential and branch versions
+    const sequential = versions.filter(v => v.version.split('.').length === 2);
+    const branches = versions.filter(v => v.version.split('.').length > 2);
+
+    // Sort sequential versions
+    sequential.sort((a, b) => this.compareVersions(b.version, a.version)); // Reverse chronological
+
+    // Group branches by their base version
+    const branchGroups: { [key: string]: any[] } = {};
+    branches.forEach(branch => {
+      const parts = branch.version.split('.');
+      const baseVersion = `${parts[0]}.${parts[1]}`;
+      if (!branchGroups[baseVersion]) {
+        branchGroups[baseVersion] = [];
+      }
+      branchGroups[baseVersion].push(branch);
+    });
+
+    // Interleave sequential and branch versions
+    for (const seqVersion of sequential) {
+      sortedVersions.push({ version: seqVersion, indent: 0 });
+
+      // Add branches for this version
+      const versionBranches = branchGroups[seqVersion.version] || [];
+      versionBranches
+        .sort((a, b) => this.compareVersions(b.version, a.version))
+        .forEach(branch => {
+          const depth = branch.version.split('.').length - 2; // Depth beyond major.minor
+          sortedVersions.push({ version: branch, indent: depth });
+        });
+    }
+
+    return sortedVersions;
+  }
+
+  /**
+   * Compare version strings (e.g., "1.2.1" vs "1.1.3")
+   */
+  private compareVersions(a: string, b: string): number {
+    const aParts = a.split('.').map(Number);
+    const bParts = b.split('.').map(Number);
+
+    for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+      const aVal = aParts[i] || 0;
+      const bVal = bParts[i] || 0;
+
+      if (aVal !== bVal) {
+        return aVal - bVal;
+      }
+    }
+
+    return 0;
   }
 }

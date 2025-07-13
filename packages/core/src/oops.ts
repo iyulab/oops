@@ -260,6 +260,7 @@ export class Oops {
   public async commitAll(message?: string): Promise<VersionInfo[]> {
     const trackedFiles = await this.getAllTrackedFiles();
     const commits: VersionInfo[] = [];
+    const errors: string[] = [];
 
     for (const file of trackedFiles) {
       try {
@@ -275,11 +276,20 @@ export class Oops {
             const commit = await this.versionManager.createCommit(file.filePath, message);
             commits.push(commit);
           }
-        } catch {
-          // Skip files that can't be versioned
-          console.error(`Failed to commit ${file.filePath}: ${error.message}`);
+        } catch (initError: any) {
+          // Only add to errors, don't print to console
+          errors.push(`Failed to commit ${file.filePath}: ${initError.message}`);
         }
       }
+    }
+
+    // If we have errors but no commits, this might indicate a real problem
+    if (errors.length > 0 && commits.length === 0) {
+      // Only log the first few errors to avoid spam
+      const significantErrors = errors.slice(0, 3);
+      throw new Error(
+        `No files could be committed. Recent errors: ${significantErrors.join('; ')}`
+      );
     }
 
     return commits;

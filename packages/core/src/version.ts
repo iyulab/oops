@@ -48,21 +48,31 @@ export class VersionManager {
   public async createCommit(filePath: string, message?: string): Promise<VersionInfo> {
     const history = await this.getVersionHistory(filePath);
 
-    // Calculate next version number
-    const nextVersion = this.calculateNextVersion(history.currentVersion);
+    // Calculate next version number based on current position and branching logic
+    const nextVersion = this.calculateNextVersion(history.currentVersion, history);
 
     // Create the new version
     const versionInfo = await this.createVersion(filePath, nextVersion, message);
 
     // Update history
     history.versions.push(versionInfo);
-    history.currentVersion = nextVersion;
 
-    // Add to branches if needed
-    const parentVersion = history.currentVersion;
-    if (!history.branches[parentVersion]) {
-      history.branches[parentVersion] = [];
+    // Handle branching: if we're not at the latest sequential version, create a branch
+    const latestSequentialVersion = this.getLatestSequentialVersion(history.versions);
+    const isCreatingBranch =
+      this.compareVersions(history.currentVersion, latestSequentialVersion) < 0;
+
+    if (isCreatingBranch) {
+      // Add to branches
+      const parentVersion = history.currentVersion;
+      if (!history.branches[parentVersion]) {
+        history.branches[parentVersion] = [];
+      }
+      history.branches[parentVersion].push(nextVersion);
     }
+
+    // Update current version
+    history.currentVersion = nextVersion;
 
     await this.saveVersionHistory(filePath, history);
     return versionInfo;
@@ -209,12 +219,71 @@ export class VersionManager {
     };
   }
 
-  private calculateNextVersion(currentVersion: string): string {
-    const parts = currentVersion.split('.');
+  /**
+   * Calculate next version number with branching support
+   * Sequential: 1.0 → 1.1 → 1.2
+   * Branching: 1.1 → 1.1.1 → 1.1.2 (when editing past versions)
+   * Sub-branching: 1.1.1 → 1.1.1.1 → 1.1.1.2
+   */
+  private calculateNextVersion(currentVersion: string, history: VersionHistory): string {
+    const latestSequentialVersion = this.getLatestSequentialVersion(history.versions);
+
+    // If we're at the latest sequential version, increment normally
+    if (this.compareVersions(currentVersion, latestSequentialVersion) === 0) {
+      return this.incrementSequentialVersion(currentVersion);
+    }
+
+    // Otherwise, we're creating a branch
+    return this.createBranchVersion(currentVersion, history);
+  }
+
+  /**
+   * Increment sequential version (1.0 → 1.1, 1.1 → 1.2)
+   */
+  private incrementSequentialVersion(version: string): string {
+    const parts = version.split('.');
     const major = parseInt(parts[0]);
     const minor = parseInt(parts[1]) + 1;
 
     return `${major}.${minor}`;
+  }
+
+  /**
+   * Create a branch version (1.1 → 1.1.1, 1.1.1 → 1.1.1.1)
+   */
+  private createBranchVersion(baseVersion: string, history: VersionHistory): string {
+    const existingBranches = history.branches[baseVersion] || [];
+
+    if (existingBranches.length === 0) {
+      // First branch from this version
+      return `${baseVersion}.1`;
+    }
+
+    // Find the highest branch number and increment
+    const branchNumbers = existingBranches
+      .filter(v => v.startsWith(baseVersion + '.'))
+      .map(v => {
+        const branchPart = v.substring(baseVersion.length + 1);
+        const firstDot = branchPart.indexOf('.');
+        const branchNum = firstDot === -1 ? branchPart : branchPart.substring(0, firstDot);
+        return parseInt(branchNum);
+      })
+      .filter(n => !isNaN(n));
+
+    const nextBranchNum = Math.max(...branchNumbers, 0) + 1;
+    return `${baseVersion}.${nextBranchNum}`;
+  }
+
+  /**
+   * Get the latest sequential version (highest major.minor without branch suffix)
+   */
+  private getLatestSequentialVersion(versions: VersionInfo[]): string {
+    const sequentialVersions = versions
+      .map(v => v.version)
+      .filter(v => v.split('.').length === 2) // Only major.minor versions
+      .sort(this.compareVersions.bind(this));
+
+    return sequentialVersions[sequentialVersions.length - 1] || '1.0';
   }
 
   private compareVersions(a: string, b: string): number {
