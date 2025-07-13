@@ -68,7 +68,12 @@ export class DiffCommand extends BaseCommand {
           if (diffOutput && diffOutput !== 'No differences found') {
             hasAnyDiff = true;
 
-            this.log(`\n📁 ${path.basename(file.filePath)}:`);
+            this.log(
+              `\ndiff --git a/${path.basename(file.filePath)} b/${path.basename(file.filePath)}`
+            );
+            this.log(`index ${version}..current 100644`);
+            this.log(`--- a/${path.basename(file.filePath)}`);
+            this.log(`+++ b/${path.basename(file.filePath)}`);
             this.log(diffOutput);
           }
         } catch (error: any) {

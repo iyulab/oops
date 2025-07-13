@@ -44,16 +44,19 @@ export class LogCommand extends BaseCommand {
           this.log(`\n📁 ${path.basename(file.filePath)}:`);
 
           if (options.graph || options.oneline) {
-            // Show compact format
+            // Show Git-style compact format
             if (hasChanges) {
-              this.log(`* ${currentVersion}+ (HEAD, modified) Working changes`);
+              this.log(`* ${currentVersion}+ (HEAD, tag: ${currentVersion}+) Working changes`);
             } else {
-              this.log(`* ${currentVersion} (HEAD, clean) Current version`);
+              this.log(`* ${currentVersion} (HEAD, tag: ${currentVersion}) Current version`);
             }
 
             for (const version of versions.reverse()) {
-              const marker = version.version === currentVersion ? ' (current)' : '';
-              this.log(`* ${version.version}${marker} ${version.message || 'No message'}`);
+              const isHead = version.version === currentVersion;
+              const tag = isHead
+                ? ` (HEAD, tag: ${version.version})`
+                : ` (tag: ${version.version})`;
+              this.log(`* ${version.version}${tag} ${version.message || 'No message'}`);
             }
           } else {
             // Show detailed format

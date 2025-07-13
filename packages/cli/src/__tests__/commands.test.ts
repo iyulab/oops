@@ -37,6 +37,9 @@ describe('Individual Command Tests (100% Coverage)', () => {
     // Create test file
     await fs.writeFile(testFile, 'test content\n');
 
+    // Set isolated workspace for each test
+    process.env.OOPS_WORKSPACE = tempDir;
+
     // Setup mocks
     console.log = mockConsoleLog;
     console.error = mockConsoleError;
@@ -50,6 +53,9 @@ describe('Individual Command Tests (100% Coverage)', () => {
     // Restore original methods
     console.log = originalConsoleLog;
     console.error = originalConsoleError;
+
+    // Clear workspace environment variable
+    delete process.env.OOPS_WORKSPACE;
 
     // Clean up temp directory
     try {
