@@ -1,6 +1,6 @@
 {
   "name": "@iyulab/oops",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Core SDK for Oops - Safe text file editing with automatic backup",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
