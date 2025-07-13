@@ -19,7 +19,7 @@ Oops provides **8 essential commands** using familiar Git syntax for complete fi
 
 | 명령어 | 축약형 | 기능 | 설명 | Git 유사 명령어 |
 |--------|--------|------|------|----------------|
-| `oops track <file>` | `oops <file>` | 추적 시작 | 파일 버전 관리 시작, 1.0 생성 | `git init` + `git add` |
+| `oops track <file>` | `oops <file>` | 추적 시작 | 파일 버전 관리 시작, 버전 1 생성 | `git init` + `git add` |
 | `oops commit [msg]` | - | 버전 생성 | 현재 상태를 새 버전으로 저장 | `git commit` |
 | `oops checkout <ver>` | - | 버전 이동 | 특정 버전으로 파일 상태 변경 | `git checkout` |
 | `oops diff [ver]` | - | 변경사항 비교 | 현재와 특정 버전 간 차이 표시 | `git diff` |
@@ -48,7 +48,7 @@ oops script.py
 ```
 
 **Behavior:**
-- Creates version 1.0 if file not yet versioned
+- Creates version 1 if file not yet versioned
 - Shows current status if already versioning
 - Sets up invisible versioning infrastructure
 - Works with any text file
@@ -59,7 +59,7 @@ oops script.py
 git init && git add file  oops track file
 ```
 
-**First time:** Creates 1.0 and shows getting started tips
+**First time:** Creates version 1 and shows getting started tips
 **Already versioned:** Shows current version and change status
 
 ---
@@ -80,10 +80,10 @@ git add . && git commit  oops commit
 ```
 
 **Versioning Logic:**
-- **Sequential**: 1.0 → 1.1 → 1.2 → 1.3
-- **Branching**: If you go back to 1.1 and edit → creates 1.1.1, 1.1.2, etc.
+- **Sequential**: 1 → 2 → 3 → 4 → 5...
+- **Simple increment**: Each commit creates the next sequential number
 - **Auto-description**: Analyzes changes if no message provided
-- **Smart incrementing**: Handles complex branching automatically
+- **Linear progression**: Clean, predictable version numbers
 
 **Requirements:** File must have changes since last version
 
@@ -94,7 +94,7 @@ git add . && git commit  oops commit
 
 ```bash
 oops diff           # Compare with previous version
-oops diff 1.1       # Compare current with specific version
+oops diff 3         # Compare current with version 3
 oops diff --tool code        # Open in VS Code
 oops diff | less             # Pipe to pager like Git
 ```
@@ -103,7 +103,7 @@ oops diff | less             # Pipe to pager like Git
 ```bash
 # Git                    # Oops
 git diff HEAD~1        oops diff
-git diff v1.1          oops diff 1.1
+git diff v3            oops diff 3
 git diff --tool=code   oops diff --tool code
 ```
 
@@ -119,8 +119,8 @@ git diff --tool=code   oops diff --tool code
 **Navigate to any version in history**
 
 ```bash
-oops checkout 1.1   # Go to specific version
-oops checkout 1.2.1 # Go to branch version
+oops checkout 3     # Go to version 3
+oops checkout 5     # Go to version 5
 oops checkout HEAD  # Go to latest version
 ```
 
@@ -128,8 +128,8 @@ oops checkout HEAD  # Go to latest version
 ```bash
 # Git                    # Oops
 git checkout main       oops checkout HEAD
-git checkout v1.2       oops checkout 1.2
-git checkout <commit>   oops checkout 1.1
+git checkout v5         oops checkout 5
+git checkout <commit>   oops checkout 3
 ```
 
 **Behavior:**
@@ -137,7 +137,7 @@ git checkout <commit>   oops checkout 1.1
 - Shows where you moved to
 - Standard Git checkout semantics
 
-**Note:** After checkout, you can edit and commit to create a branch
+**Note:** After checkout, you can edit and commit to create the next version
 
 ---
 
@@ -167,37 +167,29 @@ git log --decorate      oops log
 
 **Example Output:**
 ```
-* 1.2.1 (HEAD, tag: 1.2.1) Alternative approach
-| * 1.3 (tag: 1.3) Final cleanup  
-| * 1.2 (tag: 1.2) Added SSL config
-|/  
-* 1.1 (tag: 1.1) Database settings
-* 1.0 (tag: 1.0) Initial version
+* 5 (HEAD, tag: v5) Final cleanup  
+* 4 (tag: v4) Added SSL config
+* 3 (tag: v3) Database settings
+* 2 (tag: v2) Configuration updates
+* 1 (tag: v1) Initial version
 ```
 
 ---
 
-## Auto-Versioning System
+## Simple Versioning System
 
 ### Version Number Format
 
 **Sequential Progression:**
 ```
-1.0 → 1.1 → 1.2 → 1.3 → 1.4
+1 → 2 → 3 → 4 → 5 → 6...
 ```
 
-**Branching from Earlier Versions:**
-```
-1.2 → 1.3
-  ↳ 1.2.1 → 1.2.2 → 1.2.3
-```
-
-**Complex Branching:**
-```
-1.0 → 1.1 → 1.2 → 1.3
-          ↳ 1.1.1 → 1.1.2
-                 ↳ 1.1.1.1
-```
+**Clean and Predictable:**
+- No complex branching numbers
+- Easy to understand and remember
+- Each commit increments by 1
+- Linear progression always
 
 ### Smart Description Generation
 
@@ -253,14 +245,14 @@ oops undo config.txt 1.2   # Restore to specific version
 
 | 단계 | 명령어 | 결과 | 버전 |
 |------|--------|------|------|
-| 1 | `oops config.txt` | 추적 시작 | 1.0 |
+| 1 | `oops config.txt` | 추적 시작 | 1 |
 | 2 | 파일 편집 | - | - |
-| 3 | `oops commit` | 새 버전 생성 | 1.1 |
+| 3 | `oops commit` | 새 버전 생성 | 2 |
 | 4 | 파일 편집 | - | - |
-| 5 | `oops commit "SSL added"` | 메시지와 함께 버전 생성 | 1.2 |
-| 6 | `oops checkout 1.1` | 이전 버전으로 이동 | 1.1 |
+| 5 | `oops commit "SSL added"` | 메시지와 함께 버전 생성 | 3 |
+| 6 | `oops checkout 2` | 이전 버전으로 이동 | 2 |
 | 7 | 파일 편집 | - | - |
-| 8 | `oops commit` | 브랜치 버전 생성 | 1.1.1 |
+| 8 | `oops commit` | 새 버전 생성 | 4 |
 | 9 | `oops log` | 전체 히스토리 확인 | - |
 | 10 | `oops keep config.txt` | 작업 완료, 추적 종료 | 현재 상태 유지 |
 
@@ -268,36 +260,36 @@ oops undo config.txt 1.2   # Restore to specific version
 
 ### Linear Editing
 ```bash
-oops document.txt    # 1.0
+oops document.txt    # 1
 # edit...
-oops commit         # 1.1
+oops commit         # 2
 # edit...  
-oops commit         # 1.2
+oops commit         # 3
 ```
 
-### Experimental Branching
+### Working with History
 ```bash
-# Currently at 1.3
-oops checkout 1.1   # Go to 1.1
+# Currently at version 5
+oops checkout 3     # Go to version 3
 # try different approach...
-oops commit         # Creates 1.1.1
-# continue experiment...
-oops commit         # Creates 1.1.2
+oops commit         # Creates version 6
+# continue editing...
+oops commit         # Creates version 7
 ```
 
 ### Navigation and Comparison
 ```bash
 oops log            # See timeline
-oops checkout 1.1   # Go to specific version
-oops diff 1.0       # Compare with original
+oops checkout 3     # Go to version 3
+oops diff 1         # Compare with original
 oops checkout HEAD  # Go to latest
 ```
 
 ### Quick Recovery
 ```bash
 oops log            # What happened?
-oops checkout 1.2   # Go to known good state
-oops commit         # Branch from here
+oops checkout 4     # Go to known good state
+oops commit         # Create next version
 ```
 
 ### Git Tool Integration
@@ -325,9 +317,8 @@ Oops outputs use standard Git formats for maximum compatibility:
 
 | 상황 | 버전 형태 | 예시 |
 |------|-----------|------|
-| 순차적 진행 | Major.Minor | 1.0 → 1.1 → 1.2 → 1.3 |
-| 브랜치 생성 | Major.Minor.Patch | 1.2 → 1.2.1 → 1.2.2 |
-| 중첩 브랜치 | Major.Minor.Patch.Sub | 1.2.1 → 1.2.1.1 |
+| 순차적 진행 | 정수 | 1 → 2 → 3 → 4 → 5 |
+| 모든 상황 | 단순 증가 | 계속해서 다음 번호로 증가 |
 
 ## 상태별 가능한 명령어
 
@@ -336,7 +327,7 @@ Oops outputs use standard Git formats for maximum compatibility:
 | 추적 안함 | `track`, `<file>` | 나머지 모든 명령어 |
 | 추적 중 (변경사항 없음) | `checkout`, `log`, `untrack`, `keep`, `undo` | `commit` (변경사항 없음) |
 | 추적 중 (변경사항 있음) | 모든 명령어 | 없음 |
-| 과거 버전 위치 | `commit` (브랜치 생성), `checkout`, `log`, 종료 명령어들 | 없음 |
+| 과거 버전 위치 | `commit` (새 버전 생성), `checkout`, `log`, 종료 명령어들 | 없음 |
 
 ## Error Prevention
 
@@ -353,7 +344,7 @@ Oops outputs use standard Git formats for maximum compatibility:
 | 파일이 존재하지 않음 | `oops track missing.txt` | 에러 메시지 + 파일 생성 안내 |
 | 이미 추적 중 | `oops track config.txt` | 현재 상태 표시 |
 | 변경사항 없음 | `oops commit` | 에러 메시지 + 편집 안내 |
-| 잘못된 버전 번호 | `oops checkout 999.999` | 에러 메시지 + 가능한 버전 목록 |
+| 잘못된 버전 번호 | `oops checkout 999` | 에러 메시지 + 가능한 버전 목록 |
 | 손상된 .git 폴더 | 모든 명령어 | 자동 복구 시도 또는 재시작 안내 |
 
 ### Safety Features

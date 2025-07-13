@@ -37,7 +37,7 @@ export class LogCommand extends BaseCommand {
       // Show version history for each tracked file
       for (const file of trackedFiles) {
         try {
-          const versions = await oops.getVersions(file.filePath);
+          const versions = await oops.getVersionHistory(file.filePath);
           const currentVersion = await oops.getCurrentVersion(file.filePath);
           const hasChanges = await oops.hasVersionChanges(file.filePath);
 

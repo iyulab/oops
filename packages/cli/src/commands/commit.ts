@@ -23,27 +23,51 @@ export class CommitCommand extends BaseCommand {
         throw new Error('No workspace found. Start tracking a file first with: oops <file>');
       }
 
-      // Commit all files with changes using new version system
+      // Commit all files with changes
       this.log('Creating version checkpoint...');
 
-      const commits = await oops.commitAll(message);
+      // Get tracked files
+      const trackedFiles = await oops.getAllTrackedFiles();
 
-      if (commits.length === 0) {
+      let commitCount = 0;
+
+      for (const file of trackedFiles) {
+        const filePath = file.filePath;
+        try {
+          // Check for changes using the version system
+          if (await oops.hasVersionChanges(filePath)) {
+            const result = await oops.commitVersion(filePath, message || 'Auto-generated commit');
+            commitCount++;
+
+            const fileName = path.basename(filePath);
+            this.log(`✓ Version ${result.version} created for ${fileName}`);
+
+            if (message) {
+              this.log(`  Message: ${message}`);
+            }
+          }
+        } catch (error: any) {
+          // File not being version tracked, try to start tracking with version
+          if (error.message.includes('not being tracked')) {
+            try {
+              const result = await oops.trackWithVersion(filePath, 'Initial version');
+              commitCount++;
+
+              const fileName = path.basename(filePath);
+              this.log(`✓ Version ${result.version} created for ${fileName}`);
+              this.log(`  Message: Initial version`);
+            } catch (initError: any) {
+              // Skip files that can't be tracked
+              continue;
+            }
+          }
+        }
+      }
+
+      if (commitCount === 0) {
         this.log('Nothing to commit - no changes detected');
         this.log('\nTip: Edit your tracked files and then commit to save a new version');
         return;
-      }
-
-      // Show results
-      for (const commit of commits) {
-        const fileName = path.basename(commit.filePath);
-        this.log(`✓ Version ${commit.version} created for ${fileName}`);
-
-        if (commit.message) {
-          this.log(`  Message: ${commit.message}`);
-        } else {
-          this.log(`  Auto-generated commit`);
-        }
       }
 
       this.log('\nNext steps:');

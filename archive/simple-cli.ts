@@ -7,7 +7,14 @@
 
 import { SimpleBackup } from '@iyulab/oops';
 import * as path from 'path';
-const colors = require('colors/safe');
+
+// Simple color helper for console output (no external dependencies)
+const colors = {
+  yellow: (text: string) => (process.env.NO_COLOR ? text : `\u001b[33m${text}\u001b[0m`),
+  green: (text: string) => (process.env.NO_COLOR ? text : `\u001b[32m${text}\u001b[0m`),
+  cyan: (text: string) => (process.env.NO_COLOR ? text : `\u001b[36m${text}\u001b[0m`),
+  red: (text: string) => (process.env.NO_COLOR ? text : `\u001b[31m${text}\u001b[0m`),
+};
 
 export class SimpleCLI {
   private backup: SimpleBackup;

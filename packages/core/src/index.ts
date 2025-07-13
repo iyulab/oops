@@ -19,4 +19,3 @@ export * from './version';
 
 // Main SDK classes
 export { Oops } from './oops';
-export { SimpleBackup } from './simple-backup';

@@ -14,7 +14,14 @@ export class CheckoutCommand extends BaseCommand {
   }
 
   async execute(args: string[]): Promise<void> {
-    const version = args[0];
+    const versionStr = args[0];
+    const version = parseInt(versionStr, 10);
+
+    if (isNaN(version) || version < 1) {
+      throw new Error(
+        `Invalid version number: ${versionStr}. Use positive integers like 1, 2, 3...`
+      );
+    }
 
     try {
       const oops = new Oops();
@@ -36,12 +43,17 @@ export class CheckoutCommand extends BaseCommand {
       let checkoutCount = 0;
       const errors: string[] = [];
 
-      // Try to checkout version for each tracked file
+      // Use the new version system for checkout
       for (const file of trackedFiles) {
         try {
+          // Try to checkout using the version system
           await oops.checkoutVersion(file.filePath, version);
           checkoutCount++;
         } catch (error: any) {
+          if (error.message.includes('not being tracked')) {
+            // File is not in the version system, skip
+            continue;
+          }
           errors.push(`${path.basename(file.filePath)}: ${error.message}`);
         }
       }

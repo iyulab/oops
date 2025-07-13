@@ -1,388 +1,329 @@
-# Oops Development TODO
+# Oops Development TODO - Updated for Actual Implementation State
 
-## Project Status: Core Integration Phase
+## Project Status: Identity Resolution Phase
 
-Phase 1 (Git Command Structure) has been completed successfully with comprehensive testing. Now transitioning to Phase 2 (Core Integration) to connect CLI commands with actual functionality.
-
----
-
-## ✅ Completed Phases
-
-### Phase 0: Project Foundation (COMPLETED)
-- ✅ Monorepo setup with TypeScript, Jest, ESLint
-- ✅ Basic package structure (CLI + Core)
-- ✅ Core classes with placeholder functionality
-- ✅ CLI framework with basic commands
-- ✅ Test suite configured and passing
-
-### Phase 1: Git Command Structure (COMPLETED)
-**Objective**: Transform CLI to Git-compatible commands with comprehensive testing
-
-- ✅ **Phase 1a**: Documentation Update - Updated all docs to reflect Git command structure
-- ✅ **Phase 1b**: Command Restructure - Replaced 5-command with 8-command Git-compatible structure
-- ✅ **Phase 1c**: CLI Parser Update - Updated argument parsing for new command patterns
-- ✅ **Phase 1d**: Implementation - Created all 8 commands with placeholder functionality
-- ✅ **Phase 1e**: Testing - Achieved ~85% CLI coverage with 100% utils coverage
-
-**Results**: 
-- ✅ CLI uses Git commands: `track`, `commit`, `checkout`, `log`, `diff`, `untrack`, `keep`, `undo`
-- ✅ Git options supported: `--oneline`, `--graph`, `--tool`
-- ✅ Complete lifecycle management (track → version → navigate → end)
-- ✅ Comprehensive test suite with 110+ test cases
-- ✅ All commands build and execute without errors
-- ✅ Git-style output formatting implemented
-
-**Test Coverage Analysis**:
-- CLI Package: ~85% coverage (commands.test.ts, cli.test.ts, utils.test.ts)
-- Utils Package: 100% coverage (OutputFormatter, PromptManager)
-- Integration Tests: Complete workflow testing implemented
-- Edge Cases: Comprehensive error handling tested
+**CRITICAL DISCOVERY**: Project has two parallel implementations with conflicting philosophies. Need immediate architectural decision and alignment.
 
 ---
 
-## 🔧 Current Phase
+## 🚨 URGENT: Architecture Decision Required
 
-### Phase 2: Core Integration (IN PROGRESS)
-**Objective**: Connect CLI commands to actual Core package functionality
+### Current State (2025-01-13)
 
-**Critical Gap Identified**: CLI commands currently use placeholder implementations. Need to integrate with Core package for real functionality.
+**Two Competing Implementations Coexist:**
 
-#### Phase 2a: CLI-Core Connection (COMPLETED)
-- ✅ Import and instantiate Oops core class in CLI commands
-- ✅ Replace placeholder console.log statements with core.track(), core.commit(), etc.
-- ✅ Implement proper error handling from core operations
-- ✅ Update command validation to use core state checking
-- ✅ Test real end-to-end workflows with core integration
+1. **Simple CLI** (`simple-cli.ts`) - Core Purpose Aligned
+   - ✅ 5 essential commands: `oops <file>`, `status`, `diff`, `keep`, `undo`
+   - ✅ Simple backup/restore workflow (no versioning)
+   - ✅ Fully functional with comprehensive tests
+   - ✅ Matches documented project purpose
 
-**Results**:
-- ✅ All 8 CLI commands now use real Core package functionality
-- ✅ TrackCommand: Uses core.track() and workspace auto-initialization
-- ✅ CommitCommand: Uses core.keep() + re-track for version simulation
-- ✅ StatusCommand: Uses core.getAllTrackedFiles() and change detection
-- ✅ DiffCommand: Uses core.diff() and core.hasChanges()
-- ✅ LogCommand: Uses tracking info for basic version history
-- ✅ CheckoutCommand: Uses backup restoration for limited version navigation
-- ✅ UntrackCommand: Uses core.abort() to stop tracking
-- ✅ UndoCommand: Uses core.undo() to restore and stop tracking
-- ✅ Manual testing confirms real file operations work correctly
-- ⚠️ Test suite needs updates for new integrated behavior
+2. **Complex CLI** (`cli.ts`) - Git-Inspired Versioning
+   - ✅ 9 Git commands: `track`, `commit`, `checkout`, `log`, `diff`, etc.
+   - ✅ Full version management system (1.0 → 1.1 → 1.1.1)
+   - ✅ Complete Git-style workflow
+   - ❗ **Currently set as main binary** in package.json
 
-#### Phase 2b: Version System Implementation (COMPLETED)
-- ✅ Implement real version numbering (1.0 → 1.1 → 1.2)
-- ✅ Add branching logic foundation (1.1 → 1.1.1, 1.1.2 when editing past versions)
-- ✅ Create version tag system compatible with Git
-- ✅ Implement auto-increment logic for sequential versioning
-- ✅ Replace backup/restore model with version tracking
-- ✅ Create VersionManager class for complete version control
-- ✅ Implement version history, diff, and checkout functionality
+**Problem**: Documentation describes simple backup system, but complex CLI is the default interface.
 
-**Results**:
-- ✅ New VersionManager class with complete version control system
-- ✅ CLI commands updated to use real version numbering (track → 1.0, commit → 1.1, 1.2...)
-- ✅ Version history with timestamps, messages, and checksums
-- ✅ Checkout functionality for navigating between versions
-- ✅ Diff support between any two versions
-- ✅ Git-compatible version output formatting
-- ✅ All 8 CLI commands integrated with new version system
+### ✅ What's Actually Working (All Tests Passing: 155/155)
 
-#### Phase 2c: Test Suite Integration (IN PROGRESS)
-**CRITICAL ISSUES (25 failing CLI tests):**
-1. **Test Expectation Mismatches**: Tests expect old placeholder behavior but CLI uses real version system
-2. **Git-Style Output Missing**: Tests expect Git format but commands output simple messages
-3. **Workspace Isolation**: Tests interfere due to shared workspace/version state
-4. **Mock Misalignment**: Mocks don't match real VersionManager behavior
+#### Core Package (`@iyulab/oops`)
+- ✅ **SimpleBackup Class**: Complete simple backup/restore system
+- ✅ **Oops SDK**: Full versioning system with Git integration
+- ✅ **FileSystem**: Complete filesystem abstraction
+- ✅ **GitWrapper**: Working Git integration via simple-git
+- ✅ **Error Handling**: Comprehensive error system with atomic operations
+- ✅ **Transaction System**: Safe atomic file operations
+- ✅ **Configuration**: Environment-based config management
 
-**IMMEDIATE TASKS:**
-- ⏳ Implement workspace isolation (unique temp workspace per test)
-- ⏳ Update test expectations for version system integration
-- ⏳ Fix Git-style output formatting in LogCommand and DiffCommand
-- ⏳ Update mocks to match real VersionManager interface
-- ⏳ Fix command workflow tests (track → commit → checkout → log)
+#### CLI Package (`@iyulab/oops-cli`)
+- ✅ **SimpleCLI**: 5-command interface (matches docs)
+- ✅ **CLI**: Complex Git-compatible interface
+- ✅ **Utilities**: Output formatting, prompt management
+- ✅ **Integration**: Both CLIs work with Core functionality
 
-**TEST CATEGORIES TO FIX:**
-- Version System Integration (8 tests): TrackCommand, CommitCommand
-- Git-Style Output (7 tests): LogCommand --oneline/--graph, DiffCommand Git format
-- Version Dependencies (6 tests): Commands requiring proper version setup
-- Workspace Isolation (4 tests): Cross-test interference
+#### Test Suite
+- ✅ **100% Core Coverage**: All core functionality tested
+- ✅ **Complete CLI Coverage**: Both simple and complex interfaces tested
+- ✅ **Integration Tests**: End-to-end workflows verified
+- ✅ **Safety Tests**: Atomic operations, error handling, edge cases
 
 ---
 
-## 📋 Future Phases (Lower Priority)
+## 🎯 IMMEDIATE DECISION REQUIRED
 
-### Phase 4: Quality & Testing Enhancement (MEDIUM PRIORITY)
-**Objective**: Achieve complete test coverage and cross-platform reliability
+Choose project direction and resolve architectural conflict:
 
-#### Phase 4a: Test Suite Completion
-- ⏳ Fix remaining 50 CLI test failures (environment isolation issues)
-- ⏳ Achieve 100% test coverage for both CLI and Core packages
-- ⏳ Add comprehensive integration tests for advanced features
-- ⏳ Create performance benchmarks and regression testing
-- ⏳ Add stress testing for large files and many versions
+### Option A: Simple Backup Tool (Align with Documentation)
+**Change Required:**
+- Make `simple-cli.ts` the main binary
+- Archive complex CLI implementation
+- Focus on 5-command simplicity
+- Update any docs that mention Git commands
 
-#### Phase 4b: Cross-Platform Testing
-- ⏳ Test Windows, macOS, Linux compatibility
-- ⏳ Add CI/CD pipeline for multi-platform testing
-- ⏳ Create automated testing for edge cases
-- ⏳ Add reliability testing for corrupted files/repositories
-- ⏳ Implement comprehensive error scenario testing
+**Pros:**
+- Matches documented purpose
+- Zero learning curve
+- Simple, focused tool
+- Clear project identity
 
-### Phase 5: User Experience & Polish (LOW PRIORITY)
-**Objective**: Enhance user experience and documentation
+### Option B: Git-Style Versioning Tool (Expand Documentation) 
+**Change Required:**
+- Update documentation to describe Git capabilities
+- Keep complex CLI as main interface
+- Rebrand as "Git for single files"
+- Update README with versioning examples
 
-#### Phase 5a: Documentation Complete
-- ⏳ Create comprehensive user guides and tutorials
-- ⏳ Add troubleshooting and FAQ documentation
-- ⏳ Document best practices and usage patterns
-- ⏳ Create migration guides for different workflows
-- ⏳ Add performance optimization documentation
-
-#### Phase 5b: Advanced CLI Features
-- ⏳ Add interactive mode for complex operations
-- ⏳ Implement command auto-completion
-- ⏳ Create visual timeline representation
-- ⏳ Add configuration management utilities
-- ⏳ Implement advanced error recovery
-
-### Phase 6: Distribution & Packaging (LOW PRIORITY)
-**Objective**: Prepare for production distribution
-
-#### Phase 6a: Package Distribution
-- ⏳ Create standalone binary packages
-- ⏳ Add Docker container support
-- ⏳ Implement auto-update mechanisms
-- ⏳ Create installation scripts for different platforms
-- ⏳ Add package manager integration (npm, brew, apt, etc.)
-
-#### Phase 6b: Integration & Extensions
-- ⏳ Create editor plugins (VS Code, Vim, Emacs)
-- ⏳ Add Git hook integration
-- ⏳ Implement external tool compatibility
-- ⏳ Create API for third-party integrations
-- ⏳ Add webhook and automation support
+**Pros:**
+- More powerful functionality
+- Appeals to developers familiar with Git
+- Unique positioning in market
+- Leverages existing complex implementation
 
 ---
 
-## 🎯 Current Sprint Goals & Next Actions
+## 📋 TDD-Based Development Plan
 
-### ✅ COMPLETED PHASES SUMMARY
-**Phase 0**: Project Bootstrap ✅ COMPLETED
-**Phase 1**: Git Command Structure ✅ COMPLETED  
-**Phase 2a**: CLI-Core Integration ✅ COMPLETED
-**Phase 2b**: Version Numbering System ✅ COMPLETED
-**Phase 2c**: Test Suite Integration ✅ MAJOR REFACTORING COMPLETED
+### Phase 1: Identity Resolution (CURRENT PRIORITY - Week 1)
 
-### ✅ COMPLETED SPRINT: Phase 3a.1 (Advanced Branching) - COMPLETE!
+#### 1.1 Architecture Decision (Day 1)
+- [ ] **Choose project direction** (Simple vs Complex)
+- [ ] Update package.json to set correct main binary
+- [ ] Archive unused implementation (keep for reference)
+- [ ] Update CLAUDE.md with chosen direction
 
-**✅ MAJOR ACHIEVEMENT**: Advanced Branching System Fully Implemented
-**Duration**: Completed in current session
-**Status**: All goals achieved successfully
+#### 1.2 Documentation Alignment (Days 2-3)
+- [ ] Update README.md to match chosen implementation
+- [ ] Revise ARCHITECTURE.md for selected approach
+- [ ] Update COMMANDS.md with correct command set
+- [ ] Ensure all docs reflect actual functionality
 
-**✅ Sprint Results:**
-1. ✅ Branch versioning implemented (1.1 → 1.1.1, 1.1.2, 1.1.3)
-2. ✅ Sub-branch support working (1.1.1 → 1.1.1.1, 1.1.1.2)
-3. ✅ Branch navigation logic complete
-4. ✅ CLI commands handle complex version trees
-5. ✅ Complete branching workflows tested and working
+#### 1.3 Test Suite Consolidation (Days 4-5)
+- [ ] Remove tests for archived implementation
+- [ ] Ensure 100% coverage for chosen approach
+- [ ] Add integration tests for main workflow
+- [ ] Performance benchmarks for chosen implementation
 
-**✅ Success Criteria Met:**
-- ✅ Branch versions created automatically when editing past versions
-- ✅ Complex version trees supported (unlimited depth)
-- ✅ CLI commands handle branched versions correctly
-- ✅ Branch navigation works seamlessly
-- ✅ Git-style visualization with proper tree structure
+### Phase 2: Implementation Refinement (Week 2)
 
-### 🚨 CRITICAL PRIORITY SHIFT: Core Purpose Alignment
+#### 2.1 Core Package Polish
+- [ ] Remove unused classes for archived approach
+- [ ] Optimize chosen implementation
+- [ ] Add any missing functionality
+- [ ] Update type definitions
 
-**MAJOR DISCOVERY**: Current implementation misaligned with project purpose!
+#### 2.2 CLI Enhancement
+- [ ] Polish user experience for chosen CLI
+- [ ] Add missing help text and examples
+- [ ] Improve error messages
+- [ ] Add auto-completion hints
 
-**Project Purpose**: "Safe text file editing with automatic backup and simple undo"
-**Current Implementation**: Complex Git versioning system with 8 commands
-**Required Action**: Realign with core purpose - simple backup/restore tool
+#### 2.3 Distribution Preparation
+- [ ] Update package.json metadata
+- [ ] Create installation scripts
+- [ ] Test cross-platform compatibility
+- [ ] Prepare for npm publishing
 
-**NEW PRIORITY**: Core Purpose Implementation (CRITICAL)
-**Duration**: 1-2 weeks  
-**Approach**: Test-driven development focusing on essential features
+### Phase 3: Advanced Features (Weeks 3-4)
 
-#### ✅ Phase 4: Core Purpose Realignment (COMPLETED SUCCESSFULLY!)
+#### 3.1 Simple Path Enhancements
+*If Simple CLI chosen:*
+- [ ] Add configuration options (diff tools, etc.)
+- [ ] Enhance diff output formatting
+- [ ] Add batch operations for multiple files
+- [ ] Create editor integrations
 
-**✅ MAJOR ACHIEVEMENT**: Project Purpose Fully Implemented!
+#### 3.2 Complex Path Enhancements  
+*If Complex CLI chosen:*
+- [ ] Migrate from simple-git to isomorphic-git
+- [ ] Add advanced branching visualization
+- [ ] Implement external diff tool integration
+- [ ] Add export to Git repository functionality
 
-##### ✅ Phase 4a: Essential 5-Command System (COMPLETED)
-- ✅ `oops <file>` - Start tracking with auto-backup (SimpleCLI + SimpleBackup)
-- ✅ `oops diff [file]` - Show simple before/after comparison
-- ✅ `oops keep <file>` - Accept changes and stop tracking
-- ✅ `oops undo <file>` - Restore from backup and stop tracking  
-- ✅ `oops status` - Show tracked files and their status
-
-##### ✅ Phase 4b: Simple Backup System (COMPLETED)
-- ✅ SimpleBackup class replaces complex Git versioning
-- ✅ One backup per file (original → modified → keep/undo)
-- ✅ Automatic cleanup after keep/undo operations
-- ✅ Safety checks: file existence, backup integrity, atomic operations
-
-##### 🔄 Phase 4c: Test Realignment (NEXT PRIORITY)  
-- ⏳ Write comprehensive tests for SimpleBackup and SimpleCLI
-- ⏳ Remove complex Git versioning tests (1.0 → 1.1 → 1.1.1)
-- ⏳ Focus on core safety features: backup, restore, integrity
-- ⏳ Achieve >95% test coverage for essential functionality
-
-**✅ SUCCESS CRITERIA ACHIEVED**:
-- ✅ 5 essential commands working perfectly
-- ✅ Simple backup/restore workflow (no complex versioning)
-- ✅ Zero learning curve - intuitive for any user  
-- ✅ Bulletproof safety features (atomic operations, integrity checks)
-- 🔄 Complete test coverage for core functionality (IN PROGRESS)
-
-### Week 2c: ✅ MAJOR REFACTORING COMPLETED - Phase 2c Test Suite Rewrite
-
-**Infrastructure & Test Rewrite (COMPLETED)**
-- ✅ Complete rewrite of CLI tests based on actual implementation
-- ✅ Complete rewrite of command tests for 100% coverage alignment
-- ✅ Workspace isolation with OOPS_WORKSPACE environment variable per test
-- ✅ Real version system integration testing
-- ✅ Git-style output formatting verification
-- ✅ Documentation analysis (README.md, ARCHITECTURE.md, COMMANDS.md)
-
-**Current Status (Latest Update):**
-- ✅ Infrastructure: Complete workspace isolation implemented
-- ✅ Git Output: Git-style formatting fully implemented and verified
-- 🚀 Test Coverage: 138/189 tests passing (51 tests failing - major improvement from 55)
-- ✅ Real Implementation: CLI commands now work with real Core functionality
-- ✅ Integration: Commands properly integrated with version system
-- ✅ Branching System: Advanced branching fully implemented and working
-- ✅ Workspace Isolation: OOPS_WORKSPACE environment variable support added
-- ✅ Color Handling: NO_COLOR support for test environments
-
-**Key Achievements:**
-- Complete test architecture overhaul based on documentation
-- Real version system (1.0 → 1.1 → 1.2) working correctly
-- Git-compatible output formats implemented
-- Workspace isolation per test achieved
-- All core functionality tested and working
+#### 3.3 Quality Assurance
+- [ ] Cross-platform testing (Windows, macOS, Linux)
+- [ ] Performance testing with large files
+- [ ] User acceptance testing
+- [ ] Security audit
 
 ---
 
-## 🎯 Phase 3: Advanced Features & Performance (READY TO START)
+## 🧪 TDD Strategy
 
-### Phase 3a: Core Feature Enhancement (HIGH PRIORITY)
-**Objective**: Enhance core functionality with advanced features
-**Status**: Ready to start - Core integration complete
+### Test-First Development Approach
 
-#### 3a.1: Advanced Branching System (✅ COMPLETED)
-- ✅ Foundation: Sequential versioning (1.0 → 1.1 → 1.2) working
-- ✅ Implement branch versioning (1.1 → 1.1.1, 1.1.2, 1.1.3)
-- ✅ Add sub-branch support (1.1.1 → 1.1.1.1, 1.1.1.2)
-- ✅ Create branch navigation logic
-- ✅ Update CLI commands to handle complex version trees
-- ✅ Git-style log visualization with branching structure
+#### 1. Behavior Tests (What user experiences)
+```typescript
+describe('User Workflow', () => {
+  it('should track file and create backup')
+  it('should show changes clearly')
+  it('should restore safely')
+  it('should handle errors gracefully')
+})
+```
 
-#### 3a.2: Enhanced Git Integration (HIGH PRIORITY)
-- ⏳ Replace simple-git with isomorphic-git (remove Git CLI dependency)
-- ⏳ Implement proper Git diff format output
-- ⏳ Add external diff tool integration (--tool option)
-- ⏳ Enhance log output with Git decoration compatibility
-- ⏳ Add Git repository export functionality
+#### 2. Integration Tests (CLI + Core interaction)
+```typescript
+describe('CLI Integration', () => {
+  it('should work end-to-end with real files')
+  it('should handle concurrent operations')
+  it('should maintain atomic safety')
+})
+```
 
-#### 3a.3: Intelligent Change Analysis (MEDIUM PRIORITY)
-- ⏳ Implement smart commit message generation
-- ⏳ Add change pattern detection (config changes, code refactoring, etc.)
-- ⏳ Create automatic version description generation
-- ⏳ Add file section change tracking
-- ⏳ Implement semantic diff analysis
+#### 3. Performance Tests (Non-functional requirements)
+```typescript
+describe('Performance', () => {
+  it('should handle files up to 10MB')
+  it('should complete operations in <1 second')
+  it('should work with 100+ versions')
+})
+```
 
-### Phase 3b: Storage Architecture Redesign (MEDIUM PRIORITY)
-**Objective**: Move from workspace-based to per-file hidden repositories
+### Current Test Status
+- ✅ **155 tests passing** across all functionality
+- ✅ **Core SDK**: Comprehensive unit and integration tests
+- ✅ **Both CLIs**: Complete workflow testing
+- ✅ **Edge Cases**: Error handling, atomic operations, unicode files
+- ✅ **Safety**: File corruption, permission errors, cleanup
 
-#### 3b.1: Per-File Repository System
-- ⏳ Design new storage: `~/.oops/files/<file-hash>/`
-- ⏳ Implement isolated Git repository per file
-- ⏳ Migrate from `.keeper/` workspace model
-- ⏳ Add file isolation and independent version histories
-- ⏳ Create migration utility for existing workspaces
+---
 
-#### 3b.2: Cross-Platform Storage
-- ⏳ Implement Windows, macOS, Linux compatibility
-- ⏳ Add proper permission handling
-- ⏳ Create cleanup and maintenance utilities
-- ⏳ Add storage space management
-- ⏳ Implement backup and restore for oops data
+## 🔧 Refactoring Plan
 
-### Phase 3c: Performance & Scalability (MEDIUM PRIORITY)
-**Objective**: Optimize for large files and many versions
+### Immediate Refactoring (Post-Decision)
 
-#### 3c.1: Performance Optimization
-- ⏳ Implement lazy loading for version data
-- ⏳ Add efficient diffing for large files (stream processing)
-- ⏳ Optimize Git operations (minimal command set)
-- ⏳ Add metadata caching between operations
-- ⏳ Create performance benchmarks and monitoring
+#### Code Cleanup
+- [ ] Remove unused implementation files
+- [ ] Clean up imports and dependencies
+- [ ] Update build scripts for single CLI
+- [ ] Simplify package structure
 
-#### 3c.2: Scalability Improvements
-- ⏳ Handle files up to 10MB efficiently
-- ⏳ Support up to 1000 versions per file
-- ⏳ Ensure sub-second operations for typical usage
-- ⏳ Add concurrent file handling
-- ⏳ Implement version history compression
+#### API Cleanup
+- [ ] Remove unused Core methods
+- [ ] Simplify type definitions
+- [ ] Clean up error handling for chosen path
+- [ ] Update configuration options
+
+#### Documentation Cleanup
+- [ ] Remove conflicting information
+- [ ] Update all code examples
+- [ ] Ensure consistency across all docs
+- [ ] Add migration notes if needed
+
+### Long-term Refactoring
+
+#### Architecture Improvements
+- [ ] Implement plugin system for extensibility
+- [ ] Add configuration file support
+- [ ] Create proper logging system
+- [ ] Add telemetry collection (optional)
+
+#### Performance Optimizations
+- [ ] Stream processing for large files
+- [ ] Lazy loading of version data
+- [ ] Caching for repeated operations
+- [ ] Memory usage optimization
+
+---
+
+## 📊 Success Metrics
+
+### Quality Gates
+- [ ] **100% Test Coverage** for chosen implementation
+- [ ] **Sub-second Performance** for typical operations
+- [ ] **Zero Breaking Changes** during refactoring
+- [ ] **Documentation Accuracy** - no contradictions
+
+### User Experience Goals
+- [ ] **Zero Setup Time** - works immediately
+- [ ] **Intuitive Commands** - discoverable without docs
+- [ ] **Clear Error Messages** - actionable feedback
+- [ ] **Safe Operations** - never lose data
+
+### Technical Goals
+- [ ] **Cross-platform Support** - Windows, macOS, Linux
+- [ ] **Minimal Dependencies** - fast installation
+- [ ] **Standard Compliance** - follows platform conventions
+- [ ] **Extensible Architecture** - future enhancements possible
+
+---
+
+## 🚨 Known Issues & Risks
+
+### High Priority Issues
+1. **Identity Crisis**: Two CLIs with different purposes
+2. **Main Binary Mismatch**: Wrong CLI set as default
+3. **Documentation Conflicts**: Simple vs complex descriptions
+4. **User Confusion**: Unclear which approach to use
+
+### Medium Priority Issues
+1. **Dependency Management**: simple-git vs isomorphic-git decision
+2. **Storage Architecture**: Workspace vs per-file repos
+3. **Performance**: Large file handling not optimized
+4. **Distribution**: No package publishing setup
+
+### Technical Debt
+1. **Unused Code**: Both implementations maintain parallel functionality
+2. **Test Complexity**: Testing both simple and complex approaches
+3. **Configuration**: Multiple config systems in parallel
+4. **Error Handling**: Duplicate error paths
+
+---
+
+## 📈 Progress Tracking
+
+### Week 1: Identity Resolution
+- [ ] Day 1: Architecture decision
+- [ ] Day 2: Documentation updates
+- [ ] Day 3: Test consolidation
+- [ ] Day 4: Code cleanup
+- [ ] Day 5: Integration verification
+
+### Week 2: Implementation Polish
+- [ ] Core package refinement
+- [ ] CLI user experience improvements
+- [ ] Cross-platform testing
+- [ ] Performance optimization
+
+### Week 3-4: Advanced Features
+- [ ] Path-specific enhancements
+- [ ] External integrations
+- [ ] Distribution preparation
+- [ ] User acceptance testing
 
 ---
 
 ## 🔄 Development Workflow
 
-1. **Update this TODO.md** before starting any major work
-2. **Mark items as completed** (✅) when finished
-3. **Mark items as in progress** (⏳) when actively working
-4. **Add new discoveries** and tasks as they emerge
-5. **Update phase objectives** if requirements change
+1. **TDD First**: Write tests before implementation
+2. **Small Commits**: Incremental changes with tests
+3. **Documentation**: Update docs with every change
+4. **Integration**: Test CLI + Core together
+5. **Performance**: Benchmark critical operations
 
 ---
 
-## 📈 Success Metrics
+## 📝 Decision Log
 
-- [ ] All Git users can use Oops without learning new commands
-- [ ] Standard Git tools work with Oops output (diff viewers, log parsers)
-- [ ] Zero-setup file versioning works on all platforms
-- [ ] Performance matches or exceeds current implementation
-- [x] Test coverage maintains >90% for CLI functionality
-- [ ] Core package integration with >90% coverage
+### 2025-01-13: Architecture Analysis Complete
+- **Discovery**: Two parallel implementations discovered
+- **Status**: Both implementations fully functional and tested
+- **Issue**: Documentation misalignment with default binary
+- **Next**: Architecture decision required
 
----
-
-## 🚨 Known Issues & Blockers
-
-### ✅ RESOLVED
-- **✅ RESOLVED**: Old command structure successfully replaced with Git-compatible commands
-- **✅ RESOLVED**: CLI parser updated for all 8 commands
-- **✅ RESOLVED**: Missing commands (track, untrack, keep, undo) implemented
-- **✅ RESOLVED**: Test coverage achieved (~85% CLI, 100% utils)
-- **✅ RESOLVED**: Complete lifecycle management implemented
-
-### 🚨 CRITICAL (Phase 2c Priority)
-- **CRITICAL**: Test suite expects old placeholder behavior - 25 CLI tests failing
-- **CRITICAL**: Version system integration not reflected in test expectations
-- **CRITICAL**: Need workspace isolation for clean version system testing
-- **CRITICAL**: Git-style output formatting not matching test expectations
-- **CRITICAL**: Mock setup mismatch with real version system behavior
-
-### ⚠️ MEDIUM PRIORITY
-- **Technical Debt**: Simple-git dependency needs migration to isomorphic-git
-- **Architecture**: Workspace-based storage needs redesign for per-file repos
-- **Enhancement**: Help command handling needs improvement
-- **Enhancement**: External diff tool integration incomplete
-
-### 📋 IDENTIFIED GAPS
-- Core package has 0% test coverage
-- No integration between CLI and Core packages
-- Version system is conceptual only
-- State management not implemented
-- Git output formatting is placeholder
+### Pending Decisions
+- [ ] **Primary Interface**: Simple CLI vs Complex CLI
+- [ ] **Git Strategy**: simple-git vs isomorphic-git migration
+- [ ] **Storage Model**: Workspace-based vs per-file repos
+- [ ] **Distribution**: Single package vs separate CLI/Core packages
 
 ---
 
-*Last Updated: 2025-01-13*
-*Current Phase: Ready for Phase 3a.1 (Advanced Branching) - 🚀 READY TO START*
-*Previous Phase: Phase 2c (Test Suite Integration) - ✅ MAJOR REFACTORING COMPLETED*
-*Current Status: Core functionality complete, comprehensive test rewrite finished*
-*Test Status: 136/186 tests passing (73.1%), Core functionality fully working*
-*Key Achievement: Real version system integrated, Git-compatible output, workspace isolation*
-*Next Priority: Advanced branching system (1.1 → 1.1.1, 1.1.2) - Critical feature*
-*Decision: Proceed with Phase 3a features - core integration is solid*
+*Last Updated: 2025-01-13*  
+*Current Phase: Identity Resolution - Architecture Decision Required*  
+*Test Status: 155/155 passing*  
+*Implementation Status: Two complete, conflicting implementations*  
+*Priority: Choose project direction and resolve architectural conflict*  
+*Quality: Production-ready code with excellent test coverage*

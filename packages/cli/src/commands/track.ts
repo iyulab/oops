@@ -37,17 +37,17 @@ export class TrackCommand extends BaseCommand {
         throw new Error(`File not found: ${filePath}`);
       }
 
-      // Check if file is already under version control
-      let currentVersion: string;
-      let hasChanges: boolean;
-
+      // Check if file is already being version tracked
       try {
-        currentVersion = await oops.getCurrentVersion(filePath);
-        hasChanges = await oops.hasVersionChanges(filePath);
+        const versionHistory = await oops.getVersionHistory(filePath);
+        const currentVersion = await oops.getCurrentVersion(filePath);
 
         // File already tracked - show current status
-        this.log(`📊 ${path.basename(filePath)} - Already tracking`);
+        const hasChanges = await oops.hasVersionChanges(filePath);
+
+        this.log(`📊 ${path.basename(filePath)} - Already under version control`);
         this.log(`Current version: ${currentVersion}`);
+        this.log(`Total versions: ${versionHistory.length}`);
         this.log(`Status: ${hasChanges ? 'Modified (has changes)' : 'Clean (no changes)'}`);
 
         this.log('\nNext steps:');
@@ -58,17 +58,29 @@ export class TrackCommand extends BaseCommand {
         }
         this.log('  oops log        - View version history');
         this.log('  oops checkout <version> - Navigate to specific version');
-      } catch {
-        // Start tracking new file - create version 1.0
-        const versionInfo = await oops.trackWithVersioning(filePath, 'Initial version');
-        this.log(`✓ Started tracking ${path.basename(filePath)}`);
-        this.log(`✓ Created version ${versionInfo.version}`);
+      } catch (error: any) {
+        if (error.message.includes('not being tracked')) {
+          // Start tracking new file - create version 1.0
+          const result = await oops.trackWithVersion(filePath, 'Initial version');
 
-        this.log('\n🎯 File is now under version control!');
-        this.log('\nNext steps:');
-        this.log('  1. Edit the file with any editor');
-        this.log('  2. oops commit     - Save changes as new version');
-        this.log('  3. oops log        - View version history');
+          // Also add to legacy tracking system so commit can find it
+          try {
+            await oops.track(filePath);
+          } catch {
+            // If legacy tracking fails, continue anyway
+          }
+
+          this.log(`✓ Started tracking ${path.basename(filePath)}`);
+          this.log(`✓ Created version ${result.version}`);
+
+          this.log('\n🎯 File is now under version control!');
+          this.log('\nNext steps:');
+          this.log('  1. Edit the file with any editor');
+          this.log('  2. oops commit     - Save changes as new version');
+          this.log('  3. oops log        - View version history');
+        } else {
+          throw error;
+        }
       }
     } catch (error: any) {
       this.error('Failed to track file: ' + error.message);

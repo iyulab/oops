@@ -51,8 +51,9 @@ export class DiffCommand extends BaseCommand {
 
           if (version && version !== 'HEAD~1') {
             // Compare with specific version
+            const versionNum = parseInt(version, 10);
             const currentVersion = await oops.getCurrentVersion(file.filePath);
-            diffOutput = await oops.versionDiff(file.filePath, version, currentVersion);
+            diffOutput = await oops.getVersionDiff(file.filePath, versionNum, currentVersion);
           } else {
             // Check for working changes (default behavior)
             const hasChanges = await oops.hasVersionChanges(file.filePath);
@@ -61,8 +62,8 @@ export class DiffCommand extends BaseCommand {
               continue; // Skip files with no changes
             }
 
-            const currentVersion = await oops.getCurrentVersion(file.filePath);
-            diffOutput = await oops.versionDiff(file.filePath, currentVersion, 'working');
+            // Show diff against working directory (no version specified)
+            diffOutput = await oops.getVersionDiff(file.filePath);
           }
 
           if (diffOutput && diffOutput !== 'No differences found') {

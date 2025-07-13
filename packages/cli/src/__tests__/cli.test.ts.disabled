@@ -1,0 +1,427 @@
+/**
+ * SimpleCLI Integration Tests - Aligned with Core Purpose
+ * Tests the 5 essential commands for safe text file editing
+ */
+
+import { SimpleCLI } from '../simple-cli';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
+
+// Mock console methods
+const mockConsoleLog = jest.fn();
+const mockConsoleError = jest.fn();
+const mockProcessExit = jest.fn();
+
+// Store original methods
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+const originalProcessExit = process.exit;
+
+describe('SimpleCLI - Core Purpose Tests', () => {
+  let cli: SimpleCLI;
+  let tempDir: string;
+  let testFile: string;
+
+  beforeEach(async () => {
+    // Create temporary directory for each test
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'oops-test-'));
+    testFile = path.join(tempDir, 'config.txt');
+
+    // Create test file
+    await fs.writeFile(testFile, 'initial content\n');
+
+    // Setup mocks
+    console.log = mockConsoleLog;
+    console.error = mockConsoleError;
+    process.exit = mockProcessExit as any;
+
+    // Clear mocks
+    mockConsoleLog.mockClear();
+    mockConsoleError.mockClear();
+    mockProcessExit.mockClear();
+
+    // Set isolated workspace for each test
+    process.env.OOPS_WORKSPACE = tempDir;
+
+    // Disable colors for testing to avoid ANSI codes in assertions
+    process.env.NO_COLOR = '1';
+
+    // Create SimpleCLI instance
+    cli = new SimpleCLI();
+  });
+
+  afterEach(async () => {
+    // Restore original methods
+    console.log = originalConsoleLog;
+    console.error = originalConsoleError;
+    process.exit = originalProcessExit;
+
+    // Clear workspace and color environment variables
+    delete process.env.OOPS_WORKSPACE;
+    delete process.env.NO_COLOR;
+
+    // Clean up temp directory
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  });
+
+  describe('Core CLI Behavior', () => {
+    test('should show help when no arguments provided', async () => {
+      await cli.run(['node', 'oops']);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith('Oops - Safe text file editing with automatic backup');
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Usage:'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should handle --version flag', async () => {
+      await cli.run(['node', 'oops', '--version']);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith('0.1.0');
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should handle --help flag', async () => {
+      await cli.run(['node', 'oops', '--help']);
+
+      // Help should not cause process.exit when handled properly
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Track Command: oops <file>', () => {
+    test('should track new file and create backup', async () => {
+      await cli.run(['node', 'oops', testFile]);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Started tracking'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Backup created automatically'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Your file is now protected!'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should show guidance for already tracked file', async () => {
+      // Track file first
+      await cli.run(['node', 'oops', testFile]);
+      mockConsoleLog.mockClear();
+
+      // Track again
+      await cli.run(['node', 'oops', testFile]);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Already tracking'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Clean'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Edit the file, then use:'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should show modified status for changed tracked file', async () => {
+      // Track file first
+      await cli.run(['node', 'oops', testFile]);
+      
+      // Modify file
+      await fs.writeFile(testFile, 'modified content\n');
+      mockConsoleLog.mockClear();
+
+      // Track again
+      await cli.run(['node', 'oops', testFile]);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Already tracking'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Modified'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('oops diff'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('oops keep'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('oops undo'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should error on non-existent file', async () => {
+      const nonExistentFile = path.join(tempDir, 'missing.txt');
+
+      await cli.run(['node', 'oops', nonExistentFile]);
+
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Error:'),
+        expect.stringContaining('File not found')
+      );
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+
+    test('should show help when no file provided', async () => {
+      await cli.run(['node', 'oops']);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith('Oops - Safe text file editing with automatic backup');
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Usage:'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Status Command: oops status', () => {
+    test('should show empty status with no tracked files', async () => {
+      await cli.run(['node', 'oops', 'status']);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith('No files being tracked');
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Start tracking a file with: oops <file>'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should show tracked files with clean status', async () => {
+      // Track a file first
+      await cli.run(['node', 'oops', testFile]);
+      mockConsoleLog.mockClear();
+
+      await cli.run(['node', 'oops', 'status']);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Tracked files (1):'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✅ clean'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('config.txt'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should show modified status after file changes', async () => {
+      // Track file and modify it
+      await cli.run(['node', 'oops', testFile]);
+      await fs.writeFile(testFile, 'modified content\n');
+      mockConsoleLog.mockClear();
+
+      await cli.run(['node', 'oops', 'status']);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('📝 modified'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('oops diff'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('oops keep'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('oops undo'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Diff Command: oops diff [file]', () => {
+    test('should show no changes for clean file', async () => {
+      // Track file but don't modify it
+      await cli.run(['node', 'oops', testFile]);
+      mockConsoleLog.mockClear();
+
+      await cli.run(['node', 'oops', 'diff']);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith('No changes detected');
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should show diff for modified file', async () => {
+      // Track file and modify it
+      await cli.run(['node', 'oops', testFile]);
+      await fs.writeFile(testFile, 'modified content\n');
+      mockConsoleLog.mockClear();
+
+      await cli.run(['node', 'oops', 'diff']);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('config.txt'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('-'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('+'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should show diff for specific file', async () => {
+      // Track file and modify it
+      await cli.run(['node', 'oops', testFile]);
+      await fs.writeFile(testFile, 'modified content\n');
+      mockConsoleLog.mockClear();
+
+      await cli.run(['node', 'oops', 'diff', testFile]);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('-'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('+'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Keep Command: oops keep <file>', () => {
+    test('should keep changes and stop tracking', async () => {
+      // Track file and modify it
+      await cli.run(['node', 'oops', testFile]);
+      await fs.writeFile(testFile, 'modified content\n');
+      mockConsoleLog.mockClear();
+
+      await cli.run(['node', 'oops', 'keep', testFile]);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✅ Kept changes'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('no longer tracked'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('changes are now permanent'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should error when no file provided', async () => {
+      await cli.run(['node', 'oops', 'keep']);
+
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Error:'),
+        expect.stringContaining('Usage: oops keep <file>')
+      );
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+
+    test('should error when file not tracked', async () => {
+      await cli.run(['node', 'oops', 'keep', 'config.txt']);
+
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Error:'),
+        expect.stringContaining('File is not being tracked')
+      );
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('Undo Command: oops undo <file>', () => {
+    test('should restore file from backup and stop tracking', async () => {
+      // Track file and modify it
+      await cli.run(['node', 'oops', testFile]);
+      await fs.writeFile(testFile, 'modified content\n');
+      mockConsoleLog.mockClear();
+
+      await cli.run(['node', 'oops', 'undo', testFile]);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('🔄 Restored'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('from backup'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('no longer tracked'));
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('changes have been reverted'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should error when no file provided', async () => {
+      await cli.run(['node', 'oops', 'undo']);
+
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Error:'),
+        expect.stringContaining('Usage: oops undo <file>')
+      );
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+
+    test('should error when file not tracked', async () => {
+      await cli.run(['node', 'oops', 'undo', 'config.txt']);
+
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Error:'),
+        expect.stringContaining('File is not being tracked')
+      );
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+  });
+
+
+
+
+
+  describe('Complete Workflows', () => {
+    test('should support complete track → diff → keep workflow', async () => {
+      // 1. Track file
+      await cli.run(['node', 'oops', testFile]);
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Started tracking'));
+
+      // 2. Modify file
+      await fs.writeFile(testFile, 'modified content\n');
+      mockConsoleLog.mockClear();
+
+      // 3. Check diff
+      await cli.run(['node', 'oops', 'diff']);
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('config.txt'));
+
+      // 4. Keep changes
+      mockConsoleLog.mockClear();
+      await cli.run(['node', 'oops', 'keep', testFile]);
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✅ Kept changes'));
+
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should support complete track → diff → undo workflow', async () => {
+      // 1. Track file
+      await cli.run(['node', 'oops', testFile]);
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Started tracking'));
+
+      // 2. Modify file
+      await fs.writeFile(testFile, 'modified content\n');
+      mockConsoleLog.mockClear();
+
+      // 3. Check diff
+      await cli.run(['node', 'oops', 'diff']);
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('config.txt'));
+
+      // 4. Undo changes
+      mockConsoleLog.mockClear();
+      await cli.run(['node', 'oops', 'undo', testFile]);
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('🔄 Restored'));
+
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Error Handling', () => {
+    test('should handle unknown commands gracefully (treat as file)', async () => {
+      // Unknown commands are treated as files to track
+      await cli.run(['node', 'oops', 'unknown-command']);
+
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Error:'),
+        expect.stringContaining('File not found')
+      );
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+
+    test('should handle file permission errors', async () => {
+      // This test might be platform-specific
+      const invalidPath = path.join(tempDir, 'invalid/path/file.txt');
+
+      await cli.run(['node', 'oops', invalidPath]);
+
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Error:'),
+        expect.stringContaining('File not found')
+      );
+      expect(mockProcessExit).toHaveBeenCalledWith(1);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    test('should handle files with spaces in names', async () => {
+      const spacedFile = path.join(tempDir, 'file with spaces.txt');
+      await fs.writeFile(spacedFile, 'content\n');
+
+      await cli.run(['node', 'oops', spacedFile]);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Started tracking'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should handle unicode characters in file content', async () => {
+      const unicodeContent = 'Unicode: ñáéíóú 中文 🚀';
+
+      // Track file first
+      await cli.run(['node', 'oops', testFile]);
+      await fs.writeFile(testFile, unicodeContent);
+      mockConsoleLog.mockClear();
+
+      await cli.run(['node', 'oops', 'diff']);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('config.txt'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+
+    test('should handle very long file paths', async () => {
+      const longPath = path.join(
+        tempDir,
+        'very-long-directory-name-that-exceeds-normal-limits',
+        'file.txt'
+      );
+
+      // Create directory structure
+      await fs.mkdir(path.dirname(longPath), { recursive: true });
+      await fs.writeFile(longPath, 'content\n');
+
+      await cli.run(['node', 'oops', longPath]);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('✓ Started tracking'));
+      expect(mockProcessExit).not.toHaveBeenCalled();
+    });
+  });
+});

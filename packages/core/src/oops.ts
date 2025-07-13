@@ -9,13 +9,11 @@ import { BackupManager } from './backup';
 import { DiffProcessor } from './diff';
 import { VersionManager } from './version';
 import {
-  OopsConfig,
-  FileTrackingInfo,
-  DiffResult,
-  WorkspaceInfo,
-  VersionInfo,
-  VersionHistory,
-} from './types';
+  SimpleVersionManager,
+  VersionInfo as SimpleVersionInfo,
+  CommitResult,
+} from './simple-version';
+import { OopsConfig, FileTrackingInfo, DiffResult, WorkspaceInfo, VersionInfo } from './types';
 
 export class Oops {
   private configManager: ConfigManager;
@@ -24,6 +22,7 @@ export class Oops {
   private backupManager: BackupManager;
   private diffProcessor: DiffProcessor;
   private versionManager: VersionManager;
+  private simpleVersionManagers: Map<string, SimpleVersionManager> = new Map();
 
   constructor(config: Partial<OopsConfig> = {}, workspacePath?: string) {
     this.configManager = new ConfigManager(config);
@@ -57,6 +56,11 @@ export class Oops {
 
   // File tracking operations
   public async track(filePath: string, message?: string): Promise<FileTrackingInfo> {
+    // Initialize workspace if needed
+    if (!(await this.workspaceManager.exists())) {
+      await this.init();
+    }
+
     return await this.fileTracker.startTracking(filePath, message);
   }
 
@@ -236,7 +240,96 @@ export class Oops {
     this.configManager.set(key, value);
   }
 
-  // Version management operations
+  // Simple Version System Methods (for TDD tests)
+  public async trackWithVersion(filePath: string, message?: string): Promise<SimpleVersionInfo> {
+    // Initialize workspace if needed
+    if (!(await this.workspaceManager.exists())) {
+      await this.init();
+    }
+
+    // Get or create simple version manager for this file
+    const versionManager = this.getSimpleVersionManager(filePath);
+    await versionManager.initialize();
+
+    // Create initial version
+    return await versionManager.createInitialVersion(message || 'Initial version');
+  }
+
+  public async commitVersion(filePath: string, message: string): Promise<CommitResult> {
+    const versionManager = this.getSimpleVersionManager(filePath);
+    return await versionManager.commitVersion(message);
+  }
+
+  public async getVersionHistory(filePath: string): Promise<SimpleVersionInfo[]> {
+    const versionManager = this.getSimpleVersionManager(filePath);
+    const versions = await versionManager.getAllVersions();
+
+    if (versions.length === 0) {
+      throw new Error(`File is not being tracked: ${filePath}`);
+    }
+
+    return versions;
+  }
+
+  public async checkoutVersion(filePath: string, version: number): Promise<void> {
+    const versionManager = this.getSimpleVersionManager(filePath);
+    const versions = await versionManager.getAllVersions();
+
+    if (versions.length === 0) {
+      throw new Error(`File is not being tracked: ${filePath}`);
+    }
+
+    await versionManager.checkoutVersion(version);
+  }
+
+  public async getCurrentVersion(filePath: string): Promise<number> {
+    const versionManager = this.getSimpleVersionManager(filePath);
+    const versions = await versionManager.getAllVersions();
+
+    if (versions.length === 0) {
+      throw new Error(`File is not being tracked: ${filePath}`);
+    }
+
+    const currentVersion = await versionManager.getCurrentVersion();
+    return currentVersion || 1;
+  }
+
+  public async getVersionDiff(
+    filePath: string,
+    fromVersion?: number,
+    toVersion?: number
+  ): Promise<string> {
+    const versionManager = this.getSimpleVersionManager(filePath);
+    const versions = await versionManager.getAllVersions();
+
+    if (versions.length === 0) {
+      throw new Error(`File is not being tracked: ${filePath}`);
+    }
+
+    return await versionManager.getDiff(fromVersion, toVersion);
+  }
+
+  public async hasVersionChanges(filePath: string): Promise<boolean> {
+    try {
+      const versionManager = this.getSimpleVersionManager(filePath);
+      return await versionManager.hasChanges();
+    } catch {
+      return false;
+    }
+  }
+
+  public getSimpleVersionManager(filePath: string): SimpleVersionManager {
+    if (!this.simpleVersionManagers.has(filePath)) {
+      const versionManager = new SimpleVersionManager(
+        this.workspaceManager.getWorkspacePath(),
+        filePath
+      );
+      this.simpleVersionManagers.set(filePath, versionManager);
+    }
+    return this.simpleVersionManagers.get(filePath)!;
+  }
+
+  // Version management operations (legacy)
   public async trackWithVersioning(filePath: string, message?: string): Promise<VersionInfo> {
     // Initialize workspace if needed
     if (!(await this.workspaceManager.exists())) {
@@ -295,14 +388,6 @@ export class Oops {
     return commits;
   }
 
-  public async checkoutVersion(filePath: string, version: string): Promise<void> {
-    await this.versionManager.checkout(filePath, version);
-  }
-
-  public async getVersionHistory(filePath: string): Promise<VersionHistory> {
-    return await this.versionManager.getVersionHistory(filePath);
-  }
-
   public async getVersions(filePath: string): Promise<VersionInfo[]> {
     return await this.versionManager.listVersions(filePath);
   }
@@ -313,24 +398,6 @@ export class Oops {
     toVersion?: string
   ): Promise<string> {
     return await this.versionManager.diff(filePath, fromVersion, toVersion);
-  }
-
-  public async hasVersionChanges(filePath: string): Promise<boolean> {
-    try {
-      return await this.versionManager.hasChanges(filePath);
-    } catch {
-      // If version tracking doesn't exist, fall back to old method
-      return await this.hasChanges(filePath);
-    }
-  }
-
-  public async getCurrentVersion(filePath: string): Promise<string> {
-    try {
-      const history = await this.versionManager.getVersionHistory(filePath);
-      return history.currentVersion;
-    } catch {
-      return '1.0'; // Default version if no history
-    }
   }
 
   public async untrackWithVersioning(filePath: string): Promise<void> {
