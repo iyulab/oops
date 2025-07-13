@@ -4,6 +4,7 @@
 
 import { BaseCommand } from './base';
 import { Oops } from '@iyulab/oops';
+import * as path from 'path';
 
 export class LogCommand extends BaseCommand {
   async validate(_args: string[]): Promise<void> {
@@ -33,48 +34,53 @@ export class LogCommand extends BaseCommand {
       this.log('Version history:');
       this.log('');
 
-      // For Phase 2a, show basic version history based on tracking info
-      // In Phase 2b, we'll implement proper version tracking
+      // Show version history for each tracked file
+      for (const file of trackedFiles) {
+        try {
+          const versions = await oops.getVersions(file.filePath);
+          const currentVersion = await oops.getCurrentVersion(file.filePath);
+          const hasChanges = await oops.hasVersionChanges(file.filePath);
 
-      if (options.graph || options.oneline) {
-        // Show compact format
-        this.log('* 1.1 (HEAD, current) Working changes');
-        for (const file of trackedFiles) {
-          const status = (await oops.hasChanges(file.filePath)) ? 'modified' : 'clean';
-          this.log(`  ${file.filePath} - ${status}`);
-        }
-        this.log('* 1.0 (tag: 1.0) Initial tracking');
-      } else {
-        // Show detailed format
-        this.log('version 1.1 (HEAD -> current)');
-        this.log('Date: ' + new Date().toISOString());
-        this.log('');
-        this.log('    Working changes');
-        this.log('');
+          this.log(`\n📁 ${path.basename(file.filePath)}:`);
 
-        for (const file of trackedFiles) {
-          const hasChanges = await oops.hasChanges(file.filePath);
-          if (hasChanges) {
-            const diffResult = await oops.diff(file.filePath);
-            this.log(
-              `    Modified: ${file.filePath} (+${diffResult.addedLines}/-${diffResult.removedLines})`
-            );
+          if (options.graph || options.oneline) {
+            // Show compact format
+            if (hasChanges) {
+              this.log(`* ${currentVersion}+ (HEAD, modified) Working changes`);
+            } else {
+              this.log(`* ${currentVersion} (HEAD, clean) Current version`);
+            }
+
+            for (const version of versions.reverse()) {
+              const marker = version.version === currentVersion ? ' (current)' : '';
+              this.log(`* ${version.version}${marker} ${version.message || 'No message'}`);
+            }
+          } else {
+            // Show detailed format
+            if (hasChanges) {
+              this.log(`version ${currentVersion}+ (HEAD -> modified)`);
+              this.log('Date: ' + new Date().toISOString());
+              this.log('');
+              this.log('    Uncommitted changes');
+              this.log('');
+            }
+
+            for (const version of versions.reverse()) {
+              const marker = version.version === currentVersion ? ' (current)' : '';
+              this.log(`version ${version.version}${marker}`);
+              this.log('Date: ' + version.timestamp.toISOString());
+              this.log('');
+              this.log(`    ${version.message || 'No message'}`);
+              this.log('');
+            }
           }
-        }
-
-        this.log('');
-        this.log('version 1.0 (tag: 1.0)');
-        this.log('Date: ' + workspaceInfo.createdAt.toISOString());
-        this.log('');
-        this.log('    Initial file tracking');
-
-        for (const file of trackedFiles) {
-          this.log(`    Added: ${file.filePath}`);
+        } catch (error) {
+          // If version history doesn't exist, show fallback
+          this.log(`\n📁 ${path.basename(file.filePath)}: Not under version control`);
         }
       }
 
-      this.log('');
-      this.log('\nTip: Use "oops commit" to create version 1.2');
+      this.log('\nTip: Use "oops commit" to create new versions');
     } catch (error: any) {
       this.error('Failed to show log: ' + error.message);
       throw error;

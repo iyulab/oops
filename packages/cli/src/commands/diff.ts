@@ -4,6 +4,7 @@
 
 import { BaseCommand } from './base';
 import { Oops } from '@iyulab/oops';
+import * as path from 'path';
 
 export class DiffCommand extends BaseCommand {
   public async validate(args: any[]): Promise<void> {
@@ -40,34 +41,68 @@ export class DiffCommand extends BaseCommand {
         this.log(`Using external tool: ${toolOption}`);
       }
 
-      // Show diff for each tracked file that has changes
+      // Show diff for each tracked file
       let hasAnyDiff = false;
 
       for (const file of trackedFiles) {
-        const hasChanges = await oops.hasChanges(file.filePath);
+        try {
+          // Use version diff if version is specified, otherwise check for working changes
+          let diffOutput: string;
 
-        if (hasChanges) {
-          hasAnyDiff = true;
-          const diffResult = await oops.diff(file.filePath);
-
-          // Show Git-style diff header
-          this.log(`\ndiff --git a/${file.filePath} b/${file.filePath}`);
-          this.log(`index backup..current 100644`);
-          this.log(`--- a/${file.filePath}`);
-          this.log(`+++ b/${file.filePath}`);
-
-          // Show the actual diff content
-          if (diffResult.diff) {
-            this.log(diffResult.diff);
+          if (version && version !== 'HEAD~1') {
+            // Compare with specific version
+            const currentVersion = await oops.getCurrentVersion(file.filePath);
+            diffOutput = await oops.versionDiff(file.filePath, version, currentVersion);
           } else {
-            this.log(`@@ -1,1 +1,1 @@`);
-            this.log(`-[previous content]`);
-            this.log(`+[current content]`);
+            // Check for working changes (default behavior)
+            const hasChanges = await oops.hasVersionChanges(file.filePath);
+
+            if (!hasChanges) {
+              continue; // Skip files with no changes
+            }
+
+            const currentVersion = await oops.getCurrentVersion(file.filePath);
+            diffOutput = await oops.versionDiff(file.filePath, currentVersion, 'working');
           }
 
-          this.log(
-            `\n${diffResult.addedLines} insertions(+), ${diffResult.removedLines} deletions(-)`
-          );
+          if (diffOutput && diffOutput !== 'No differences found') {
+            hasAnyDiff = true;
+
+            this.log(`\n📁 ${path.basename(file.filePath)}:`);
+            this.log(diffOutput);
+          }
+        } catch (error: any) {
+          // Fall back to old diff method if version diff fails
+          try {
+            const hasChanges = await oops.hasChanges(file.filePath);
+
+            if (hasChanges) {
+              hasAnyDiff = true;
+              const diffResult = await oops.diff(file.filePath);
+
+              this.log(`\n📁 ${path.basename(file.filePath)} (legacy diff):`);
+              this.log(`diff --git a/${file.filePath} b/${file.filePath}`);
+              this.log(`index backup..current 100644`);
+              this.log(`--- a/${file.filePath}`);
+              this.log(`+++ b/${file.filePath}`);
+
+              if (diffResult.diff) {
+                this.log(diffResult.diff);
+              } else {
+                this.log(`@@ -1,1 +1,1 @@`);
+                this.log(`-[previous content]`);
+                this.log(`+[current content]`);
+              }
+
+              this.log(
+                `\n${diffResult.addedLines} insertions(+), ${diffResult.removedLines} deletions(-)`
+              );
+            }
+          } catch {
+            this.log(
+              `\n⚠️  Could not generate diff for ${path.basename(file.filePath)}: ${error.message}`
+            );
+          }
         }
       }
 

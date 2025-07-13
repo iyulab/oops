@@ -35,16 +35,33 @@ export class StatusCommand extends BaseCommand {
 
       this.log('Workspace: ' + workspaceInfo.path);
 
-      // Display tracked files
+      // Display tracked files with version information
       if (workspaceInfo.trackedFiles.length === 0) {
         this.log('No files being tracked');
       } else {
         this.log(`\nTracked files (${workspaceInfo.trackedFiles.length}):`);
         for (const file of workspaceInfo.trackedFiles) {
           try {
-            const hasChanges = await oops.hasChanges(file.filePath);
+            // Try to get version information
+            let versionInfo = '';
+            let hasChanges = false;
+
+            try {
+              const currentVersion = await oops.getCurrentVersion(file.filePath);
+              hasChanges = await oops.hasVersionChanges(file.filePath);
+              versionInfo = `v${currentVersion}`;
+
+              if (hasChanges) {
+                versionInfo += '+';
+              }
+            } catch {
+              // Fall back to old tracking method
+              hasChanges = await oops.hasChanges(file.filePath);
+              versionInfo = 'legacy';
+            }
+
             const status = hasChanges ? '📝 modified' : '✓ clean';
-            this.log(`  ${status} ${file.filePath}`);
+            this.log(`  ${status} ${file.filePath} (${versionInfo})`);
           } catch (error: any) {
             this.log(`  ❌ error ${file.filePath} (${error.message})`);
           }

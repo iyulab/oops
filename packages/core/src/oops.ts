@@ -7,7 +7,15 @@ import { WorkspaceManager } from './workspace';
 import { FileTracker } from './tracker';
 import { BackupManager } from './backup';
 import { DiffProcessor } from './diff';
-import { OopsConfig, FileTrackingInfo, DiffResult, WorkspaceInfo } from './types';
+import { VersionManager } from './version';
+import {
+  OopsConfig,
+  FileTrackingInfo,
+  DiffResult,
+  WorkspaceInfo,
+  VersionInfo,
+  VersionHistory,
+} from './types';
 
 export class Oops {
   private configManager: ConfigManager;
@@ -15,6 +23,7 @@ export class Oops {
   private fileTracker: FileTracker;
   private backupManager: BackupManager;
   private diffProcessor: DiffProcessor;
+  private versionManager: VersionManager;
 
   constructor(config: Partial<OopsConfig> = {}, workspacePath?: string) {
     this.configManager = new ConfigManager(config);
@@ -22,6 +31,7 @@ export class Oops {
     this.fileTracker = new FileTracker(this.workspaceManager.getWorkspacePath());
     this.backupManager = new BackupManager(this.workspaceManager.getWorkspacePath());
     this.diffProcessor = new DiffProcessor();
+    this.versionManager = new VersionManager(this.workspaceManager.getWorkspacePath());
   }
 
   // Workspace operations
@@ -224,5 +234,112 @@ export class Oops {
 
   public setConfig(key: string, value: any): void {
     this.configManager.set(key, value);
+  }
+
+  // Version management operations
+  public async trackWithVersioning(filePath: string, message?: string): Promise<VersionInfo> {
+    // Initialize workspace if needed
+    if (!(await this.workspaceManager.exists())) {
+      await this.init();
+    }
+
+    // Check if already versioned
+    try {
+      const history = await this.versionManager.getVersionHistory(filePath);
+      return history.versions[history.versions.length - 1]; // Return latest version
+    } catch {
+      // Not versioned yet, initialize
+      return await this.versionManager.initializeVersioning(filePath, message);
+    }
+  }
+
+  public async commit(filePath: string, message?: string): Promise<VersionInfo> {
+    return await this.versionManager.createCommit(filePath, message);
+  }
+
+  public async commitAll(message?: string): Promise<VersionInfo[]> {
+    const trackedFiles = await this.getAllTrackedFiles();
+    const commits: VersionInfo[] = [];
+
+    for (const file of trackedFiles) {
+      try {
+        if (await this.hasVersionChanges(file.filePath)) {
+          const commit = await this.versionManager.createCommit(file.filePath, message);
+          commits.push(commit);
+        }
+      } catch (error: any) {
+        // If version system fails, try to initialize versioning first
+        try {
+          await this.trackWithVersioning(file.filePath, 'Initial version');
+          if (await this.hasVersionChanges(file.filePath)) {
+            const commit = await this.versionManager.createCommit(file.filePath, message);
+            commits.push(commit);
+          }
+        } catch {
+          // Skip files that can't be versioned
+          console.error(`Failed to commit ${file.filePath}: ${error.message}`);
+        }
+      }
+    }
+
+    return commits;
+  }
+
+  public async checkoutVersion(filePath: string, version: string): Promise<void> {
+    await this.versionManager.checkout(filePath, version);
+  }
+
+  public async getVersionHistory(filePath: string): Promise<VersionHistory> {
+    return await this.versionManager.getVersionHistory(filePath);
+  }
+
+  public async getVersions(filePath: string): Promise<VersionInfo[]> {
+    return await this.versionManager.listVersions(filePath);
+  }
+
+  public async versionDiff(
+    filePath: string,
+    fromVersion: string,
+    toVersion?: string
+  ): Promise<string> {
+    return await this.versionManager.diff(filePath, fromVersion, toVersion);
+  }
+
+  public async hasVersionChanges(filePath: string): Promise<boolean> {
+    try {
+      return await this.versionManager.hasChanges(filePath);
+    } catch {
+      // If version tracking doesn't exist, fall back to old method
+      return await this.hasChanges(filePath);
+    }
+  }
+
+  public async getCurrentVersion(filePath: string): Promise<string> {
+    try {
+      const history = await this.versionManager.getVersionHistory(filePath);
+      return history.currentVersion;
+    } catch {
+      return '1.0'; // Default version if no history
+    }
+  }
+
+  public async untrackWithVersioning(filePath: string): Promise<void> {
+    // Remove version tracking
+    await this.versionManager.removeVersioning(filePath);
+
+    // Remove old-style tracking if it exists
+    if (await this.isTracked(filePath)) {
+      await this.abort(filePath);
+    }
+  }
+
+  public async undoWithVersioning(filePath: string, version?: string): Promise<void> {
+    const targetVersion = version || '1.0'; // Default to initial version
+
+    // Checkout the specified version
+    await this.versionManager.checkout(filePath, targetVersion);
+
+    // Remove version tracking (stop tracking)
+    await this.versionManager.removeVersioning(filePath);
   }
 }

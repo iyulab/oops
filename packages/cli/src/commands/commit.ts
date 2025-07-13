@@ -23,60 +23,31 @@ export class CommitCommand extends BaseCommand {
         throw new Error('No workspace found. Start tracking a file first with: oops <file>');
       }
 
-      // Get all tracked files
-      const trackedFiles = await oops.getAllTrackedFiles();
-      if (trackedFiles.length === 0) {
-        throw new Error('No files being tracked. Start tracking a file first with: oops <file>');
-      }
+      // Commit all files with changes using new version system
+      this.log('Creating version checkpoint...');
 
-      // Check for changes in tracked files
-      let hasAnyChanges = false;
-      const changedFiles: string[] = [];
+      const commits = await oops.commitAll(message);
 
-      for (const file of trackedFiles) {
-        const hasChanges = await oops.hasChanges(file.filePath);
-        if (hasChanges) {
-          hasAnyChanges = true;
-          changedFiles.push(path.basename(file.filePath));
-        }
-      }
-
-      if (!hasAnyChanges) {
+      if (commits.length === 0) {
         this.log('Nothing to commit - no changes detected');
         this.log('\nTip: Edit your tracked files and then commit to save a new version');
         return;
       }
 
-      this.log('Creating version checkpoint...');
+      // Show results
+      for (const commit of commits) {
+        const fileName = path.basename(commit.filePath);
+        this.log(`✓ Version ${commit.version} created for ${fileName}`);
 
-      // For now, we use the backup/restore model as a basis for versioning
-      // In Phase 2b, we'll implement proper version numbering
-      // Currently, this creates a new "backup state" which represents a commit
-
-      const versionNumber = '1.1'; // TODO: Implement proper version tracking in Phase 2b
-
-      // Apply changes (keep) to create the "commit"
-      for (const file of trackedFiles) {
-        const hasChanges = await oops.hasChanges(file.filePath);
-        if (hasChanges) {
-          // Create a "commit" by applying changes
-          await oops.keep(file.filePath);
-          // Immediately start tracking again for next version
-          await oops.track(file.filePath);
+        if (commit.message) {
+          this.log(`  Message: ${commit.message}`);
+        } else {
+          this.log(`  Auto-generated commit`);
         }
       }
 
-      this.log(`✓ Version ${versionNumber} created successfully`);
-      this.log(`  Modified files: ${changedFiles.join(', ')}`);
-
-      if (message) {
-        this.log(`  Message: ${message}`);
-      } else {
-        this.log(`  Auto-generated: Modified ${changedFiles.length} file(s)`);
-      }
-
       this.log('\nNext steps:');
-      this.log('  Edit files and commit again to create version 1.2');
+      this.log('  Edit files and commit again to create new versions');
       this.log('  oops log      - View version history');
       this.log('  oops diff     - Compare with previous version');
     } catch (error: any) {

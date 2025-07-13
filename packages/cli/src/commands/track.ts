@@ -37,26 +37,32 @@ export class TrackCommand extends BaseCommand {
         throw new Error(`File not found: ${filePath}`);
       }
 
-      // Check tracking status and respond accordingly
-      const isTracked = await oops.isTracked(filePath);
+      // Check if file is already under version control
+      let currentVersion: string;
+      let hasChanges: boolean;
 
-      if (isTracked) {
+      try {
+        currentVersion = await oops.getCurrentVersion(filePath);
+        hasChanges = await oops.hasVersionChanges(filePath);
+
         // File already tracked - show current status
         this.log(`📊 ${path.basename(filePath)} - Already tracking`);
-
-        // TODO: Show current version and state (clean/dirty)
-        this.log('Current version: 1.2');
-        this.log('Status: Clean (no changes)');
+        this.log(`Current version: ${currentVersion}`);
+        this.log(`Status: ${hasChanges ? 'Modified (has changes)' : 'Clean (no changes)'}`);
 
         this.log('\nNext steps:');
-        this.log('  Edit file and commit to create new version');
-        this.log('  oops log     - View version history');
+        if (hasChanges) {
+          this.log('  oops commit     - Save changes as new version');
+        } else {
+          this.log('  Edit file and commit to create new version');
+        }
+        this.log('  oops log        - View version history');
         this.log('  oops checkout <version> - Navigate to specific version');
-      } else {
+      } catch {
         // Start tracking new file - create version 1.0
-        await oops.track(filePath);
+        const versionInfo = await oops.trackWithVersioning(filePath, 'Initial version');
         this.log(`✓ Started tracking ${path.basename(filePath)}`);
-        this.log('✓ Created version 1.0');
+        this.log(`✓ Created version ${versionInfo.version}`);
 
         this.log('\n🎯 File is now under version control!');
         this.log('\nNext steps:');

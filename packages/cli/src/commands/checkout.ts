@@ -4,6 +4,7 @@
 
 import { BaseCommand } from './base';
 import { Oops } from '@iyulab/oops';
+import * as path from 'path';
 
 export class CheckoutCommand extends BaseCommand {
   async validate(args: string[]): Promise<void> {
@@ -24,7 +25,7 @@ export class CheckoutCommand extends BaseCommand {
         throw new Error('No workspace found. Start tracking a file first with: oops <file>');
       }
 
-      // Get all tracked files
+      // Get all tracked files to find versioned files
       const trackedFiles = await oops.getAllTrackedFiles();
       if (trackedFiles.length === 0) {
         throw new Error('No files being tracked. Start tracking a file first with: oops <file>');
@@ -32,44 +33,32 @@ export class CheckoutCommand extends BaseCommand {
 
       this.log(`Checking out version ${version}...`);
 
-      // For Phase 2a, we support limited checkout functionality
-      // Version '1.0' or 'HEAD' means restore to backup (original state)
-      // In Phase 2b, we'll implement proper version navigation
+      let checkoutCount = 0;
+      const errors: string[] = [];
 
-      if (version === '1.0' || version === 'HEAD~1' || version === 'backup') {
-        // Restore to original state (version 1.0)
-        let restoredCount = 0;
-
-        for (const file of trackedFiles) {
-          const hasChanges = await oops.hasChanges(file.filePath);
-          if (hasChanges) {
-            // Temporarily restore without stopping tracking
-            const trackingInfo = await oops.getTrackingInfo(file.filePath);
-            const fs = await import('fs/promises');
-
-            if (
-              await require('fs')
-                .promises.access(trackingInfo.backupPath)
-                .then(() => true)
-                .catch(() => false)
-            ) {
-              await fs.copyFile(trackingInfo.backupPath, file.filePath);
-              restoredCount++;
-            }
-          }
+      // Try to checkout version for each tracked file
+      for (const file of trackedFiles) {
+        try {
+          await oops.checkoutVersion(file.filePath, version);
+          checkoutCount++;
+        } catch (error: any) {
+          errors.push(`${path.basename(file.filePath)}: ${error.message}`);
         }
+      }
 
+      if (checkoutCount > 0) {
         this.log(`✓ Switched to version ${version}`);
-        this.log(`  Restored ${restoredCount} file(s) to original state`);
-      } else {
-        // For other versions, show placeholder for Phase 2b
-        this.log(`⚠\ufe0f  Version ${version} navigation not yet implemented`);
-        this.log('Currently supported versions:');
-        this.log('  1.0      - Original file state');
-        this.log('  HEAD~1   - Original file state');
-        this.log('  backup   - Original file state');
-        this.log('');
-        this.log('Advanced version navigation will be available in Phase 2b');
+        this.log(`  Updated ${checkoutCount} file(s)`);
+      }
+
+      if (errors.length > 0) {
+        this.log('\n⚠️  Some files could not be checked out:');
+        errors.forEach(error => this.log(`  ${error}`));
+      }
+
+      if (checkoutCount === 0) {
+        this.log(`⚠️  Version ${version} not found for any tracked files`);
+        this.log('\nTip: Use "oops log" to see available versions');
         return;
       }
 
@@ -77,7 +66,7 @@ export class CheckoutCommand extends BaseCommand {
       this.log('\nNext steps:');
       this.log('  Edit files and commit to create a branch from this version');
       this.log('  oops log      - View version history');
-      this.log('  oops diff     - Compare with current working version');
+      this.log('  oops diff     - Compare with other versions');
     } catch (error: any) {
       this.error(`Failed to checkout version ${version}: ` + error.message);
       throw error;

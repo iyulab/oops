@@ -19,28 +19,45 @@ export class UndoCommand extends BaseCommand {
     try {
       const oops = new Oops();
 
-      // Check if file is being tracked
-      const isTracked = await oops.isTracked(filePath);
-      if (!isTracked) {
-        this.log(`File is not being tracked: ${filePath}`);
-        this.log('Nothing to undo.');
-        return;
+      // Check if file is under version control
+      let isVersioned = false;
+      try {
+        await oops.getCurrentVersion(filePath);
+        isVersioned = true;
+      } catch {
+        // Not versioned, check old tracking
+        const isTracked = await oops.isTracked(filePath);
+        if (!isTracked) {
+          this.log(`File is not being tracked: ${filePath}`);
+          this.log('Nothing to undo.');
+          return;
+        }
       }
 
       this.log(`Restoring ${filePath} to version ${version} and stopping tracking...`);
 
       // Check for unsaved changes
-      const hasChanges = await oops.hasChanges(filePath);
+      let hasChanges = false;
+      if (isVersioned) {
+        hasChanges = await oops.hasVersionChanges(filePath);
+      } else {
+        hasChanges = await oops.hasChanges(filePath);
+      }
+
       if (hasChanges) {
         this.log('\u26a0\ufe0f  This will discard current changes');
       }
 
-      // Restore file from backup and stop tracking
-      await oops.undo(filePath);
+      // Restore and stop tracking
+      if (isVersioned) {
+        await oops.undoWithVersioning(filePath, version);
+      } else {
+        await oops.undo(filePath);
+      }
 
       this.log(`✓ File restored to version ${version}`);
       this.log('✓ File tracking stopped');
-      this.log('✓ Workspace cleanup completed');
+      this.log('✓ Version history removed');
 
       this.log('\n📜 File has been restored to its original state.');
       this.log('The file is now untracked and can be edited normally.');

@@ -63,3 +63,29 @@ export interface FileStatusInfo {
   hasBackup: boolean;
   lastModified: Date;
 }
+
+// Version management types
+export interface VersionInfo {
+  version: string;
+  message?: string;
+  timestamp: Date;
+  checksum: string;
+  parent?: string;
+  filePath: string;
+}
+
+export interface VersionHistory {
+  filePath: string;
+  versions: VersionInfo[];
+  currentVersion: string;
+  branches: { [version: string]: string[] };
+}
+
+export interface VersionDiffResult {
+  fromVersion: string;
+  toVersion: string;
+  hasChanges: boolean;
+  diff: string;
+  addedLines: number;
+  removedLines: number;
+}

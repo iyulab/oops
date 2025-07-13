@@ -15,6 +15,7 @@ export * from './workspace';
 export * from './tracker';
 export * from './backup';
 export * from './diff';
+export * from './version';
 
 // Main SDK class
 export { Oops } from './oops';
