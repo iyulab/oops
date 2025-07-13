@@ -360,4 +360,106 @@ describe('Oops Core SDK', () => {
       expect(workspaceInfo.path).toBe(tempDir);
     });
   });
+
+  describe('Workspace Isolation (TDD Fix)', () => {
+    test('should isolate workspaces between different instances', async () => {
+      // Create two separate temporary directories
+      const tempDir1 = path.join(os.tmpdir(), `oops-isolation-1-${Date.now()}`);
+      const tempDir2 = path.join(os.tmpdir(), `oops-isolation-2-${Date.now()}`);
+
+      const fs = await import('fs/promises');
+      await fs.mkdir(tempDir1, { recursive: true });
+      await fs.mkdir(tempDir2, { recursive: true });
+
+      const testFile1 = path.join(tempDir1, 'test1.txt');
+      const testFile2 = path.join(tempDir2, 'test2.txt');
+
+      await fs.writeFile(testFile1, 'content 1');
+      await fs.writeFile(testFile2, 'content 2');
+
+      try {
+        // Create two separate Oops instances with different workspaces
+        const oops1 = new Oops({}, tempDir1);
+        const oops2 = new Oops({}, tempDir2);
+
+        // Initialize both workspaces
+        await oops1.init();
+        await oops2.init();
+
+        // Track files in each workspace
+        await oops1.track(testFile1);
+        await oops2.track(testFile2);
+
+        // Each workspace should only see its own files
+        const tracked1 = await oops1.getAllTrackedFiles();
+        const tracked2 = await oops2.getAllTrackedFiles();
+
+        expect(tracked1).toHaveLength(1);
+        expect(tracked1[0].filePath).toBe(testFile1);
+
+        expect(tracked2).toHaveLength(1);
+        expect(tracked2[0].filePath).toBe(testFile2);
+
+        // Commit operations should only affect their own workspace
+        await oops1.commitAll('Test commit 1');
+        const tracked2After = await oops2.getAllTrackedFiles();
+
+        // oops2 should be unaffected by oops1's commit
+        expect(tracked2After).toHaveLength(1);
+        expect(tracked2After[0].filePath).toBe(testFile2);
+      } finally {
+        // Clean up
+        await fs.rm(tempDir1, { recursive: true, force: true }).catch(() => {});
+        await fs.rm(tempDir2, { recursive: true, force: true }).catch(() => {});
+      }
+    });
+
+    test('should handle commitAll with no tracked files gracefully', async () => {
+      const tempWorkspace = path.join(os.tmpdir(), `oops-empty-${Date.now()}`);
+      const oopsEmpty = new Oops({}, tempWorkspace);
+
+      const fs = await import('fs/promises');
+      await fs.mkdir(tempWorkspace, { recursive: true });
+
+      try {
+        await oopsEmpty.init();
+
+        // Should not throw when no files are tracked
+        const commits = await oopsEmpty.commitAll('Empty commit');
+        expect(commits).toHaveLength(0);
+      } finally {
+        await fs.rm(tempWorkspace, { recursive: true, force: true }).catch(() => {});
+      }
+    });
+
+    test('should not commit files from other workspaces', async () => {
+      const tempDir1 = path.join(os.tmpdir(), `oops-separate-1-${Date.now()}`);
+      const tempDir2 = path.join(os.tmpdir(), `oops-separate-2-${Date.now()}`);
+
+      const fs = await import('fs/promises');
+      await fs.mkdir(tempDir1, { recursive: true });
+      await fs.mkdir(tempDir2, { recursive: true });
+
+      const testFile1 = path.join(tempDir1, 'test1.txt');
+      await fs.writeFile(testFile1, 'content 1');
+
+      try {
+        const oops1 = new Oops({}, tempDir1);
+        const oops2 = new Oops({}, tempDir2);
+
+        await oops1.init();
+        await oops2.init();
+
+        // Track in workspace 1
+        await oops1.track(testFile1);
+
+        // Commit from workspace 2 should not affect workspace 1 files
+        const commits = await oops2.commitAll('Should be empty');
+        expect(commits).toHaveLength(0);
+      } finally {
+        await fs.rm(tempDir1, { recursive: true, force: true }).catch(() => {});
+        await fs.rm(tempDir2, { recursive: true, force: true }).catch(() => {});
+      }
+    });
+  });
 });

@@ -17,5 +17,6 @@ export * from './backup';
 export * from './diff';
 export * from './version';
 
-// Main SDK class
+// Main SDK classes
 export { Oops } from './oops';
+export { SimpleBackup } from './simple-backup';

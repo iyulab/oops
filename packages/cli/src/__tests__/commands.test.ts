@@ -41,6 +41,9 @@ describe('Individual Command Tests - Real Implementation', () => {
     // Set isolated workspace for each test
     process.env.OOPS_WORKSPACE = tempDir;
 
+    // Disable colors for testing to avoid ANSI codes in assertions
+    process.env.NO_COLOR = '1';
+
     // Setup mocks
     console.log = mockConsoleLog;
     console.error = mockConsoleError;
@@ -55,8 +58,9 @@ describe('Individual Command Tests - Real Implementation', () => {
     console.log = originalConsoleLog;
     console.error = originalConsoleError;
 
-    // Clear workspace environment variable
+    // Clear workspace and color environment variables
     delete process.env.OOPS_WORKSPACE;
+    delete process.env.NO_COLOR;
 
     // Clean up temp directory
     try {

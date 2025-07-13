@@ -15,8 +15,12 @@ export class WorkspaceManager {
   }
 
   private resolveWorkspacePath(): string {
-    // TODO: Implement workspace resolution strategy
-    // For now, use .oops in current directory
+    // Check environment variable first (for testing and explicit overrides)
+    if (process.env.OOPS_WORKSPACE) {
+      return process.env.OOPS_WORKSPACE;
+    }
+
+    // Default: use .oops in current directory
     return path.join(process.cwd(), '.oops');
   }
 

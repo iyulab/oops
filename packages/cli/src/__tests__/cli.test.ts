@@ -44,6 +44,9 @@ describe('Oops CLI - Real Implementation Tests', () => {
     // Set isolated workspace for each test
     process.env.OOPS_WORKSPACE = tempDir;
 
+    // Disable colors for testing to avoid ANSI codes in assertions
+    process.env.NO_COLOR = '1';
+
     // Create CLI instance
     cli = new CLI();
   });
@@ -54,8 +57,9 @@ describe('Oops CLI - Real Implementation Tests', () => {
     console.error = originalConsoleError;
     process.exit = originalProcessExit;
 
-    // Clear workspace environment variable
+    // Clear workspace and color environment variables
     delete process.env.OOPS_WORKSPACE;
+    delete process.env.NO_COLOR;
 
     // Clean up temp directory
     try {
