@@ -1,373 +1,163 @@
-# Oops - Safe Text Editing Made Simple
+# Oops - Simple File Versioning for Everyone
 
-**One backup away from fearless editing.**
+**One command away from fearless editing.**
 
-Oops provides just enough safety net for confident text file editing. No complex versioning, no steep learning curve - just simple backup and undo.
+Transform any text file into a versioned document with automatic snapshots, visual history, and effortless navigation. No Git knowledge required.
 
-## Core Philosophy
+## Why Oops?
 
-- **Start immediately** - No setup required
-- **Stay simple** - 5 essential commands maximum  
-- **Feel safe** - Always have a way back
-- **Get out of the way** - Minimal interference with your workflow
+**For Writers**: Save drafts without cluttering folders with "document_v1", "document_final", "document_final_REAL"
+
+**For Developers**: Quick config changes without setting up repositories
+
+**For Students**: Track essay revisions without losing good paragraphs
+
+**For Everyone**: Edit confidently knowing you can always go back
 
 ## Quick Start
 
 ```bash
-# Start editing safely (auto-creates workspace and backup)
+# Install
+npm install -g @iyulab/oops-cli
+
+# Start versioning any file
 oops config.txt
-# ... edit with any editor ...
+
+# Edit with any editor you want
+vim config.txt
+
+# Save a checkpoint  
+oops commit
 
 # See what changed
-oops diff config.txt
-
-# Keep changes or go back to backup
-oops keep config.txt    # Apply changes
-oops undo config.txt    # Restore backup
-```
-
-## Installation
-
-```bash
-npm install -g @iyulab/oops-cli
-```
-
-## Essential Commands (5 Total)
-
-### `oops <file>`
-Start editing a file safely.
-
-```bash
-oops config.txt           # Begin safe editing
-oops nginx.conf          # Works with any text file
-oops *.conf              # Multiple files with patterns
-```
-
-**What happens:**
-- Creates workspace if needed (auto-init)
-- Makes backup of original file
-- Ready for editing with any editor
-
-**Smart behavior:**
-- First time: Creates backup and starts tracking
-- Already tracking: Shows current status
-- File changed outside: Warns and offers options
-
----
-
-### `oops diff [file]`
-See what changed.
-
-```bash
-oops diff config.txt      # Changes in specific file
-oops diff                # Changes in all tracked files
-```
-
-**Shows:**
-- Added/removed/modified lines
-- Simple color-coded output
-- Line numbers and context
-
----
-
-### `oops keep <file>`
-Keep the changes (delete backup).
-
-```bash
-oops keep config.txt      # Apply changes, remove backup
-oops keep --all          # Keep all tracked files
-```
-
-**Result:**
-- Changes become permanent
-- Backup is deleted
-- File stops being tracked
-
----
-
-### `oops undo <file>`
-Go back to backup (lose changes).
-
-```bash
-oops undo config.txt      # Restore from backup
-oops undo --all          # Undo all tracked files
-```
-
-**Result:**
-- File restored to original state
-- Current changes are lost (with warning)
-- Backup is deleted, tracking stops
-
----
-
-### `oops status`
-See what's being tracked.
-
-```bash
-oops status              # Show all tracked files
-```
-
-**Shows:**
-- Which files are tracked
-- Whether they've been modified
-- Quick summary of changes
-
-## Usage Examples
-
-### Basic Workflow
-```bash
-# Start editing safely
-oops nginx.conf
-vim nginx.conf
-
-# Check what changed
-oops diff nginx.conf
-
-# Decision time
-oops keep nginx.conf     # ✅ Looks good, keep it
-# OR
-oops undo nginx.conf     # ❌ Oops, go back to backup
-```
-
-### Multiple Files
-```bash
-# Edit several config files
-oops database.conf
-oops redis.conf
-oops nginx.conf
-
-# Edit them with your preferred tools...
-
-# Review all changes
-oops status
 oops diff
 
-# Keep some, undo others
-oops keep database.conf
-oops keep redis.conf  
-oops undo nginx.conf     # This one went wrong
+# Go back if needed
+oops checkout 1.1
+```
+
+That's it. No setup, no repositories, no complexity.
+
+## Core Concept
+
+Oops gives you **automatic versioning** for single files:
+
+- **1.0** - Your starting point
+- **1.1** - First save
+- **1.2** - Second save
+- **1.2.1** - Branch when you go back and edit
+
+Navigate through versions like pages in a book. See your editing timeline visually. Never lose work again.
+
+## Essential Commands
+
+```bash
+oops <file>      # Start versioning (creates 1.0)
+oops commit      # Create checkpoint
+oops diff        # See changes
+oops checkout    # Navigate versions
+oops log         # See timeline
+
+# End tracking
+oops untrack     # Stop tracking (keep current state)
+oops keep        # Same as untrack
+oops undo        # Restore version and stop tracking
+```
+
+Eight commands. Complete lifecycle management. Git-compatible and intuitive.
+
+## What Makes It Different
+
+**Traditional approach:**
+- Save multiple files: `doc_v1.txt`, `doc_v2.txt`, `doc_final.txt`
+- Manual backup management
+- Lost track of what changed when
+
+**With Oops:**
+- One file: `document.txt`
+- Automatic version snapshots
+- Visual timeline of all changes
+- Instant navigation between versions
+
+## Simple Examples
+
+### Basic Editing
+```bash
+oops article.md    # Start versioning
+# ... write and edit ...
+oops commit        # Checkpoint: 1.1
+# ... more editing ...
+oops commit        # Checkpoint: 1.2
+oops checkout 1.1  # Back to 1.1 if needed
+```
+
+### Experimental Changes
+```bash
+# At version 1.3, want to try something different
+oops checkout 1.1  # Go to 1.1
+# ... experimental edits ...
+oops commit        # Creates 1.1.1 (branch)
+oops log           # See the split timeline
 ```
 
 ### Quick Recovery
 ```bash
-# Oh no, what was I doing?
-oops status              # See what's tracked
-
-# See all my changes
-oops diff
-
-# Everything looks wrong, start over
-oops undo --all
+oops log           # See all versions
+oops checkout 1.0  # Go to specific version
+oops diff 1.0      # Compare with original
+oops undo file.txt 1.0  # Restore to version 1.0 and stop tracking
 ```
 
-## Global Options
+### Complete Workflow
+```bash
+oops config.txt    # Start tracking (1.0 created)
+# ... edit file ...
+oops commit        # Save as 1.1
+oops checkout 1.0  # Go back to test
+# ... edit file ...
+oops commit        # Creates branch 1.0.1
+oops log           # See full history
+oops keep config.txt  # Finished - stop tracking
+```
 
-Simple options that work with any command:
+## Key Benefits
 
-- `--all` - Apply to all tracked files
-- `--yes` - Skip confirmation prompts
-- `--quiet` - Minimal output
-- `--help` - Show help for command
+- **Zero Learning Curve**: If you can edit a file, you can use Oops
+- **No Setup**: Works immediately on any text file
+- **Git Compatible**: Uses familiar Git commands and standard output formats
+- **Safe Experimentation**: Try changes without fear
+- **Universal**: Works with any editor, any workflow
+- **Local Only**: Your files stay on your computer
+
+## Installation & Getting Started
 
 ```bash
-oops diff --all          # See all changes
-oops keep --all --yes    # Keep everything, no prompts
-oops status --quiet      # Just the file names
+# Install globally
+npm install -g @iyulab/oops-cli
+
+# Start with any text file
+oops myfile.txt
+
+# Follow the friendly prompts
+# Edit, save, navigate - that's it!
 ```
 
-## Smart Behaviors
+## Design Philosophy
 
-### Auto-Initialization
-No need for `init` - temporary workspace created automatically:
+**Simplicity First**: Git's power without Git's complexity
 
-```bash
-$ oops config.txt        # First time in directory
-✨ Creating temporary workspace at /tmp/oops-a1b2c3/
-📁 Backup created for config.txt
-🎯 Ready to edit safely!
-```
+**Zero Friction**: No commit messages, no setup, no decisions to make
 
-### Helpful Messages
-Clear, friendly output that guides you:
+**Visual Navigation**: See your edit history like a map
 
-```bash
-$ oops diff config.txt   # No changes yet
-📝 config.txt - No changes yet
-💡 Edit the file and run this again
+**Single File Focus**: No multi-file coordination headaches
 
-$ oops keep config.txt   # Successful keep
-✅ Changes kept for config.txt
-🧹 Backup cleaned up
-```
-
-### Safety Warnings
-Protection against common mistakes:
-
-```bash
-$ oops undo config.txt   # About to lose changes
-⚠️  This will lose 15 lines of changes in config.txt
-❓ Are you sure? (y/N)
-
-$ oops config.txt        # File changed outside oops
-🔄 config.txt was modified outside of oops
-💡 Run 'oops diff config.txt' to see external changes
-```
-
-## Configuration (Optional)
-
-Oops works great with zero configuration using temporary workspaces by default:
-
-```bash
-# Force persistent workspace in current directory (optional)
-export OOPS_WORKSPACE=.oops
-
-# Use specific temporary location (optional)  
-export OOPS_WORKSPACE=/custom/tmp/path
-
-# Set preferred diff tool (optional)
-export OOPS_DIFF_TOOL=code
-
-# Disable colors (optional)
-export NO_COLOR=1
-```
-
-**Default behavior:** Uses system temporary directory (`/tmp/oops-randomid/`) that auto-cleans on reboot.
-
-## What Oops Doesn't Do
-
-**Intentionally simple:**
-- ❌ Version history - just one backup per file
-- ❌ Branching - linear edit/keep/undo workflow
-- ❌ Remote sync - local backups only
-- ❌ Complex merging - simple restore only
-- ❌ File watching - manual check with `diff`
-
-**This is by design.** For complex version control, use Git. For safe quick edits, use Oops.
-
-## Common Patterns
-
-### System Config Files
-```bash
-# Editing critical system files
-sudo oops /etc/nginx/nginx.conf
-sudo vim /etc/nginx/nginx.conf
-sudo oops diff /etc/nginx/nginx.conf
-sudo oops keep /etc/nginx/nginx.conf
-# Backups stored in temp - no cleanup needed!
-```
-
-### Development Configs
-```bash
-# Database migration scripts
-oops migration.sql
-# ... edit in your IDE ...
-oops diff migration.sql  # Review before running
-oops keep migration.sql  # Looks good
-```
-
-### Experiment Safely
-```bash
-# Try different approaches
-oops algorithm.py
-# ... experiment with changes ...
-oops diff algorithm.py   # See what I tried
-oops undo algorithm.py   # Nope, go back
-```
-
-### Bulk Config Updates
-```bash
-# Update multiple environment files
-oops .env*
-# ... edit .env.dev, .env.prod, .env.test ...
-oops status              # See what changed
-oops diff                # Review all changes
-oops keep --all          # Deploy all changes
-```
-
-## Emergency Commands
-
-When things go wrong:
-
-```bash
-# What am I tracking?
-oops status
-
-# What changed everywhere?
-oops diff --all
-
-# Panic button - undo everything
-oops undo --all --yes
-
-# Nuclear option - let temp cleanup handle it
-# (Temp workspace auto-cleans on reboot)
-```
-
-## File Structure
-
-Oops keeps it simple with temporary storage by default:
-
-```
-/tmp/oops-a1b2c3d4/      # Random temp directory
-├── backups/             # Original file copies
-│   ├── config.txt
-│   └── nginx.conf
-└── tracking.json        # What files we're watching
-```
-
-**Benefits of temp storage:**
-- ✅ Auto-cleanup on system reboot
-- ✅ No clutter in project directories  
-- ✅ Isolated per-session workspaces
-- ✅ No accidental commits of backup files
-
-**For persistent storage:** Set `OOPS_WORKSPACE=.oops` to use current directory.
-
-## Why Only 5 Commands?
-
-**Simplicity wins.** Each command has one clear purpose:
-
-1. `oops <file>` - "I want to edit this safely"
-2. `oops diff` - "What did I change?"  
-3. `oops keep` - "These changes are good"
-4. `oops undo` - "Take me back to the backup"
-5. `oops status` - "What am I working on?"
-
-More commands = more complexity = higher chance of mistakes. Oops keeps you focused on what matters: editing files without fear.
-
-## Architecture
-
-Oops follows a **simplicity-first** approach:
-
-- **Single Purpose**: Safe text file editing only
-- **Zero Learning Curve**: Intuitive commands matching mental models
-- **Atomic Operations**: All-or-nothing changes to prevent corruption
-- **Workspace Isolation**: Each project operates independently
-- **Git Foundation**: Leverages Git infrastructure without exposing complexity
-
-## Development
-
-```bash
-# Clone and install
-git clone https://github.com/iyulab/oops
-cd oops
-npm install
-
-# Build and test
-npm run build
-npm test
-
-# Run locally
-npm run dev -- config.txt
-```
-
-## Contributing
-
-Contributions welcome! Please read our [contributing guidelines](CONTRIBUTING.md) and ensure all tests pass.
-
-## License
-
-MIT © [IyuLab](https://github.com/iyulab)
+**Universal Access**: Designed for non-developers but powerful enough for experts
 
 ---
 
-**Remember:** The best backup tool is the one you actually use. Oops stays out of your way while keeping you safe.
+**Perfect for**: Configuration files, scripts, documentation, creative writing, research notes, any text that evolves over time.
+
+**Not for**: Multi-file projects (use Git), binary files, team collaboration (use proper version control).
+
+Ready to edit without fear? `npm install -g @iyulab/oops-cli` and start with `oops yourfile.txt`.

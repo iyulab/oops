@@ -1,376 +1,391 @@
-# Oops Commands Documentation
+---
+
+## 옵션 및 플래그
+
+| 옵션 | 적용 명령어 | 기능 |
+|------|-------------|------|
+| `--quiet` | 모든 명령어 | 최소한의 출력 |
+| `--help` | 모든 명령어 | 도움말 표시 |
+| `--no-color` | `diff`, `log` | 색상 비활성화 |
+| `--tool <tool>` | `diff` | 외부 diff 도구 사용 |
+| `--graph` | `log` | 그래프 형태로 히스토리 표시 |
+| `--oneline` | `log` | 한 줄로 간략히 표시 |# Oops Commands Reference
 
 ## Command Overview
 
-Oops provides **5 essential commands** focused on safe text editing. Each command has a single, clear purpose.
+Oops provides **8 essential commands** using familiar Git syntax for complete file versioning lifecycle. If you know Git, you already know Oops.
 
-## Essential Commands
+## 핵심 명령어
 
-### `oops <file>`
-Start editing a file safely (auto-initialization).
+| 명령어 | 축약형 | 기능 | 설명 | Git 유사 명령어 |
+|--------|--------|------|------|----------------|
+| `oops track <file>` | `oops <file>` | 추적 시작 | 파일 버전 관리 시작, 1.0 생성 | `git init` + `git add` |
+| `oops commit [msg]` | - | 버전 생성 | 현재 상태를 새 버전으로 저장 | `git commit` |
+| `oops checkout <ver>` | - | 버전 이동 | 특정 버전으로 파일 상태 변경 | `git checkout` |
+| `oops diff [ver]` | - | 변경사항 비교 | 현재와 특정 버전 간 차이 표시 | `git diff` |
+| `oops log` | - | 히스토리 보기 | 모든 버전의 시간순 목록 표시 | `git log` |
 
-```bash
-oops <file> [options]
-oops <pattern>
-```
+## 종료 명령어
 
-**Options:**
-- `-m, --message <msg>` - Backup message
-- `--dry-run` - Show what would be tracked without doing it
-
-**Examples:**
-```bash
-oops config.txt                    # Track single file
-oops "*.conf"                     # Track files by pattern  
-oops nginx.conf -m "Before SSL"   # With backup message
-```
-
-**What it does:**
-- Creates workspace if needed (auto-init)
-- Creates backup of original file
-- Starts tracking file changes
-- Ready for editing with any editor
-
-**Smart behavior:**
-- **First time**: Creates backup and starts tracking
-- **Already tracking**: Shows current status and change summary
-- **File changed outside**: Warns and offers options
-
-**Safety notes:**
-- File must exist and be readable
-- Creates backup before any changes
-- Shows helpful next steps in output
+| 명령어 | 기능 | 동작 | 파일 상태 | .git 폴더 |
+|--------|------|------|-----------|----------|
+| `oops untrack <file>` | 추적 중단 | 현재 상태 유지하며 추적 종료 | 현재 상태 유지 | 삭제 |
+| `oops keep <file>` | 추적 중단 | untrack과 동일 (별칭) | 현재 상태 유지 | 삭제 |
+| `oops undo <file>` | 되돌리고 종료 | 최근 커밋으로 복원 후 추적 종료 | 최근 커밋 상태 | 삭제 |
+| `oops undo <file> <ver>` | 특정 버전 복원 | 지정 버전으로 복원 후 추적 종료 | 지정 버전 상태 | 삭제 |
 
 ---
 
-### `oops diff [file]`
-Show changes between backup and current file.
+## Core Commands
+
+### `oops track <file>` (축약: `oops <file>`)
+**Start versioning a file**
 
 ```bash
-oops diff [file] [options]
+oops track config.txt
+oops config.txt          # Short form
+oops script.py
 ```
 
-**Options:**
-- `--tool <tool>` - Use external diff tool (code, vimdiff, meld)
-- `--no-color` - Disable colored output
-- `-a, --all` - Show diff for all tracked files
+**Behavior:**
+- Creates version 1.0 if file not yet versioned
+- Shows current status if already versioning
+- Sets up invisible versioning infrastructure
+- Works with any text file
 
-**Examples:**
+**Git Comparison:**
 ```bash
-oops diff config.txt          # Show changes for specific file
-oops diff --all              # Show all changes
+# Git                    # Oops
+git init && git add file  oops track file
+```
+
+**First time:** Creates 1.0 and shows getting started tips
+**Already versioned:** Shows current version and change status
+
+---
+
+### `oops commit [message]`
+**Create a new version checkpoint**
+
+```bash
+oops commit
+oops commit "added database config"
+```
+
+**Git Comparison:**
+```bash
+# Git                    # Oops
+git commit -m "msg"      oops commit "msg"
+git add . && git commit  oops commit
+```
+
+**Versioning Logic:**
+- **Sequential**: 1.0 → 1.1 → 1.2 → 1.3
+- **Branching**: If you go back to 1.1 and edit → creates 1.1.1, 1.1.2, etc.
+- **Auto-description**: Analyzes changes if no message provided
+- **Smart incrementing**: Handles complex branching automatically
+
+**Requirements:** File must have changes since last version
+
+---
+
+### `oops diff [version]`
+**Show what changed**
+
+```bash
+oops diff           # Compare with previous version
+oops diff 1.1       # Compare current with specific version
 oops diff --tool code        # Open in VS Code
+oops diff | less             # Pipe to pager like Git
 ```
 
-**What it shows:**
-- Line-by-line differences
-- Added/removed/modified lines
-- File statistics (lines changed)
-- Helpful guidance when no changes found
+**Git Comparison:**
+```bash
+# Git                    # Oops
+git diff HEAD~1        oops diff
+git diff v1.1          oops diff 1.1
+git diff --tool=code   oops diff --tool code
+```
+
+**Display:**
+- Standard Git diff format (compatible with existing tools)
+- Familiar `---`/`+++` headers and `@@` hunks
+- Standard color coding (red for removed, green for added)
+- Works with external diff tools and Git-aware editors
 
 ---
 
-### `oops keep <file>`
-Apply changes and stop tracking the file.
+### `oops checkout <version>`
+**Navigate to any version in history**
 
 ```bash
-oops keep <file> [options]
-oops keep --all
+oops checkout 1.1   # Go to specific version
+oops checkout 1.2.1 # Go to branch version
+oops checkout HEAD  # Go to latest version
 ```
 
-**Options:**
-- `-m, --message <msg>` - Completion message
-- `--all` - Keep changes for all tracked files
-- `-y, --yes` - Skip confirmation prompt
-
-**Examples:**
+**Git Comparison:**
 ```bash
-oops keep config.txt                     # Keep changes
-oops keep --all                         # Keep all changes
-oops keep config.txt -m "SSL enabled"   # With message
+# Git                    # Oops
+git checkout main       oops checkout HEAD
+git checkout v1.2       oops checkout 1.2
+git checkout <commit>   oops checkout 1.1
 ```
 
-**What it does:**
-- Finalizes changes to the file
-- Removes tracking and backup data
-- **Irreversible operation** - prompts for confirmation
+**Behavior:**
+- Updates file content immediately
+- Shows where you moved to
+- Standard Git checkout semantics
 
-**Safety notes:**
-- Always prompts for confirmation unless `-y` used
-- Shows clear success message with next steps
-- Cannot be undone after completion
+**Note:** After checkout, you can edit and commit to create a branch
 
 ---
 
-### `oops undo <file>`
-Revert file to backup and stop tracking.
+### `oops log`
+**Show visual version timeline**
 
 ```bash
-oops undo <file> [options]
-oops undo --all
+oops log
+oops log --oneline
+oops log --graph
 ```
 
-**Options:**
-- `--all` - Undo changes for all tracked files
-- `-y, --yes` - Skip confirmation prompt
-- `--save-current` - Backup current state before undo
-
-**Examples:**
+**Git Comparison:**
 ```bash
-oops undo config.txt                 # Revert to backup
-oops undo --all                     # Revert all files
-oops undo config.txt --save-current # Backup current first
+# Git                    # Oops
+git log --oneline       oops log
+git log --graph         oops log --graph
+git log --decorate      oops log
 ```
 
-**What it does:**
-- Restores file from backup
-- Optionally saves current state
-- Removes tracking data
+**Display:**
+- Standard Git log format with commit hashes and tags
+- Familiar timeline layout that Git users recognize
+- Compatible with Git visualization tools
+- Standard `git log --oneline --graph` style output
+- Shows version tags as Git tags
 
-**Safety notes:**
-- Always prompts for confirmation unless `-y` used
-- Shows impact warning (lines that will be lost)
-- **Current changes will be lost**
+**Example Output:**
+```
+* 1.2.1 (HEAD, tag: 1.2.1) Alternative approach
+| * 1.3 (tag: 1.3) Final cleanup  
+| * 1.2 (tag: 1.2) Added SSL config
+|/  
+* 1.1 (tag: 1.1) Database settings
+* 1.0 (tag: 1.0) Initial version
+```
 
 ---
 
-### `oops status`
-See what's being tracked.
+## Auto-Versioning System
+
+### Version Number Format
+
+**Sequential Progression:**
+```
+1.0 → 1.1 → 1.2 → 1.3 → 1.4
+```
+
+**Branching from Earlier Versions:**
+```
+1.2 → 1.3
+  ↳ 1.2.1 → 1.2.2 → 1.2.3
+```
+
+**Complex Branching:**
+```
+1.0 → 1.1 → 1.2 → 1.3
+          ↳ 1.1.1 → 1.1.2
+                 ↳ 1.1.1.1
+```
+
+### Smart Description Generation
+
+Oops automatically analyzes your changes:
+- "Added 15 lines"
+- "Modified database section"  
+- "Removed debug code, added error handling"
+- "Major refactoring (45 lines changed)"
+
+You can always add your own note: `oops save "fixed SSL configuration"`
+
+---
+
+### 종료 명령어들
+
+#### `oops untrack <file>`
+**Stop tracking file (keep current state)**
 
 ```bash
-oops status [options]
+oops untrack config.txt
 ```
 
-**Options:**
-- `-v, --verbose` - Include file paths and timestamps
-- `-s, --short` - Compact output format
+**Behavior:**
+- Stops version tracking
+- Keeps file in current state
+- Removes all version history
+- File remains unchanged
 
-**Example output:**
-```
-Tracking Status:
-  config.txt      modified    (15 lines changed)
-  script.sh       clean       (no changes)
-  nginx.conf      modified    (3 lines changed)
+#### `oops keep <file>`
+**Alias for untrack**
 
-Summary: 3 tracked, 2 modified, 1 clean
-```
-
-**What it shows:**
-- Which files are tracked
-- Whether they've been modified
-- Quick summary of changes
-- Helpful next steps
-
-## Global Options
-
-Available for all commands:
-
-- `--all` - Apply to all tracked files
-- `--yes` - Skip confirmation prompts
-- `--quiet` - Minimal output
-- `--help` - Show help for command
-- `--no-color` - Disable colored output
-- `--workspace <path>` - Use specific workspace
-
-## Workflow Examples
-
-### Basic File Editing
 ```bash
-# Start editing safely (auto-creates workspace)
-oops config.txt
-vim config.txt
-
-# Review changes
-oops diff config.txt
-
-# Apply or revert
-oops keep config.txt    # ✅ Looks good
-# OR
-oops undo config.txt    # ❌ Go back to backup
+oops keep config.txt    # Same as untrack
 ```
 
-### Multiple File Changes
+#### `oops undo <file> [version]`
+**Restore and stop tracking**
+
 ```bash
-# Track multiple files
-oops database.conf
-oops redis.conf
-oops nginx.conf
+oops undo config.txt       # Restore to latest commit
+oops undo config.txt 1.2   # Restore to specific version
+```
 
-# Edit files with your preferred tools...
+**Behavior:**
+- Restores file to specified version (or latest)
+- Stops version tracking
+- Removes all version history
+- File content changes to restored version
 
-# Review all changes
-oops status
-oops diff --all
+---
 
-# Apply selectively
-oops keep database.conf
-oops keep redis.conf
-oops undo nginx.conf    # This one went wrong
+## 전체 워크플로우 예시
+
+| 단계 | 명령어 | 결과 | 버전 |
+|------|--------|------|------|
+| 1 | `oops config.txt` | 추적 시작 | 1.0 |
+| 2 | 파일 편집 | - | - |
+| 3 | `oops commit` | 새 버전 생성 | 1.1 |
+| 4 | 파일 편집 | - | - |
+| 5 | `oops commit "SSL added"` | 메시지와 함께 버전 생성 | 1.2 |
+| 6 | `oops checkout 1.1` | 이전 버전으로 이동 | 1.1 |
+| 7 | 파일 편집 | - | - |
+| 8 | `oops commit` | 브랜치 버전 생성 | 1.1.1 |
+| 9 | `oops log` | 전체 히스토리 확인 | - |
+| 10 | `oops keep config.txt` | 작업 완료, 추적 종료 | 현재 상태 유지 |
+
+## Common Workflows
+
+### Linear Editing
+```bash
+oops document.txt    # 1.0
+# edit...
+oops commit         # 1.1
+# edit...  
+oops commit         # 1.2
+```
+
+### Experimental Branching
+```bash
+# Currently at 1.3
+oops checkout 1.1   # Go to 1.1
+# try different approach...
+oops commit         # Creates 1.1.1
+# continue experiment...
+oops commit         # Creates 1.1.2
+```
+
+### Navigation and Comparison
+```bash
+oops log            # See timeline
+oops checkout 1.1   # Go to specific version
+oops diff 1.0       # Compare with original
+oops checkout HEAD  # Go to latest
 ```
 
 ### Quick Recovery
 ```bash
-# Check current state
-oops status
-
-# See all changes
-oops diff --all
-
-# Panic button - revert everything
-oops undo --all --yes
+oops log            # What happened?
+oops checkout 1.2   # Go to known good state
+oops commit         # Branch from here
 ```
 
-### Experiment Safely
-```bash
-# Start tracking for experiments
-oops algorithm.py
+### Git Tool Integration
 
-# Try different approaches...
-# Edit with any editor
+Oops outputs use standard Git formats for maximum compatibility:
 
-# Review what changed
-oops diff algorithm.py
+**Diff Output**: Standard `git diff` format
+- Works with `diff` tools, syntax highlighters
+- Compatible with IDE diff viewers
+- Pipeable to Git-aware tools
 
-# Decision time
-oops keep algorithm.py   # Good changes
-# OR
-oops undo algorithm.py   # Nope, go back
-```
+**History Output**: Standard `git log` format  
+- Compatible with Git visualization tools
+- Works with existing Git aliases and scripts
+- Standard commit hash and tag references
 
-## Environment Variables
-
-- `OOPS_WORKSPACE` - Default workspace path
-- `OOPS_DIFF_TOOL` - Default diff tool (code, vimdiff, meld)
-- `NO_COLOR` - Disable colors (any value)
-
-**Examples:**
-```bash
-# Use persistent workspace in current directory
-export OOPS_WORKSPACE=.oops
-
-# Use VS Code for diffs
-export OOPS_DIFF_TOOL=code
-
-# Disable colors
-export NO_COLOR=1
-```
-
-## File Structure
-
-Oops uses temporary workspaces by default:
-
-```
-/tmp/oops-a1b2c3d4/      # Random temp directory
-├── backups/             # Original file copies
-│   ├── config.txt
-│   └── nginx.conf
-└── tracking.json        # What files we're watching
-```
-
-**Benefits:**
-- ✅ Auto-cleanup on system reboot
-- ✅ No clutter in project directories
-- ✅ Isolated per-session workspaces
-- ✅ No accidental commits of backup files
-
-**For persistent storage:** Set `OOPS_WORKSPACE=.oops`
-
-## Smart Messages and Guidance
-
-### First-time Usage
-```bash
-$ oops config.txt        # First time in directory
-✨ Creating temporary workspace at /tmp/oops-a1b2c3/
-📁 Backup created for config.txt
-🎯 Edit with any editor, then run 'oops diff config.txt'
-```
-
-### Status-aware Responses
-```bash
-$ oops config.txt        # Already tracking, no changes
-📝 config.txt - No changes yet
-💡 Edit the file and run 'oops diff config.txt'
-
-$ oops config.txt        # Already tracking, has changes
-📊 config.txt - 5 lines changed
-💡 Run 'oops diff config.txt' to see changes
-```
-
-### Helpful Completions
-```bash
-$ oops keep config.txt
-✅ Changes kept for config.txt
-🧹 Backup cleaned up - file no longer tracked
-💡 Run 'oops config.txt' to start tracking again
-
-$ oops undo config.txt
-⚠️ This will lose 15 lines of changes in config.txt
-❓ Are you sure? (y/N) y
-✅ File restored from backup
-🧹 Tracking stopped
-```
-
-## Safety Guidelines
-
-### Before You Start
-1. Simply run `oops <file>` - auto-initialization handles setup
-2. Files must exist before tracking
-3. Check `oops status` to see what's being tracked
-
-### During Editing
-1. Use `oops diff` to review changes before deciding
-2. Edit files with any editor you prefer
-3. Multiple edit sessions are fine - backup persists
-
-### When Finishing
-1. Review changes with `oops diff`
-2. Use `oops keep` to apply changes permanently
-3. Use `oops undo` to revert to backup
-4. Temp workspaces auto-clean on reboot
-
-### Emergency Situations
-1. Check current state: `oops status`
-2. See all changes: `oops diff --all`
-3. Panic button: `oops undo --all --yes`
-4. Nuclear option: Reboot (temp cleanup) or manually delete workspace
-
-## Error Messages
-
-### Common Issues
-- **"File not found: config.txt"** → File must exist before tracking
-- **"File modified outside of oops"** → Use `oops diff` to see external changes
-- **"No tracked files"** → Run `oops <file>` to start tracking
-- **"Permission denied"** → Check file/directory permissions
-
-### Getting Help
-1. Use `oops --help` or `oops <command> --help`
-2. Use `oops status` to understand current state
-3. Use `oops diff --all` to see all changes
-4. Each command provides helpful next-step guidance
-
-## Design Philosophy
-
-### Why Only 5 Commands?
-
-**Simplicity wins.** Each command has one clear purpose:
-
-1. `oops <file>` - "I want to edit this safely"
-2. `oops diff` - "What did I change?"
-3. `oops keep` - "These changes are good"
-4. `oops undo` - "Take me back to the backup"
-5. `oops status` - "What am I working on?"
-
-### What Oops Doesn't Do
-
-**Intentionally simple:**
-- ❌ Version history - just one backup per file
-- ❌ Branching - linear edit/keep/undo workflow
-- ❌ Remote sync - local backups only
-- ❌ Complex merging - simple restore only
-- ❌ File watching - manual check with `diff`
-
-**This is by design.** For complex version control, use Git. For safe quick edits, use Oops.
+**External Tool Support**:
+- `--tool` option delegates to Git's difftool
+- Respects Git's tool configuration
+- Works with any Git-compatible diff viewer
 
 ---
 
-**Remember: The best backup tool is the one you actually use. Oops stays out of your way while keeping you safe.**
+## 버전 번호 체계
+
+| 상황 | 버전 형태 | 예시 |
+|------|-----------|------|
+| 순차적 진행 | Major.Minor | 1.0 → 1.1 → 1.2 → 1.3 |
+| 브랜치 생성 | Major.Minor.Patch | 1.2 → 1.2.1 → 1.2.2 |
+| 중첩 브랜치 | Major.Minor.Patch.Sub | 1.2.1 → 1.2.1.1 |
+
+## 상태별 가능한 명령어
+
+| 현재 상태 | 가능한 명령어 | 불가능한 명령어 |
+|-----------|---------------|----------------|
+| 추적 안함 | `track`, `<file>` | 나머지 모든 명령어 |
+| 추적 중 (변경사항 없음) | `checkout`, `log`, `untrack`, `keep`, `undo` | `commit` (변경사항 없음) |
+| 추적 중 (변경사항 있음) | 모든 명령어 | 없음 |
+| 과거 버전 위치 | `commit` (브랜치 생성), `checkout`, `log`, 종료 명령어들 | 없음 |
+
+## Error Prevention
+
+### Smart Validations
+- Can't commit without changes
+- Can't checkout non-existent versions
+- Clear error messages with helpful suggestions
+- Standard Git-style error messages
+
+### 에러 상황별 대응
+
+| 에러 상황 | 명령어 | 결과 |
+|-----------|--------|------|
+| 파일이 존재하지 않음 | `oops track missing.txt` | 에러 메시지 + 파일 생성 안내 |
+| 이미 추적 중 | `oops track config.txt` | 현재 상태 표시 |
+| 변경사항 없음 | `oops commit` | 에러 메시지 + 편집 안내 |
+| 잘못된 버전 번호 | `oops checkout 999.999` | 에러 메시지 + 가능한 버전 목록 |
+| 손상된 .git 폴더 | 모든 명령어 | 자동 복구 시도 또는 재시작 안내 |
+
+### Safety Features
+- File existence validation
+- Permission checking
+- Atomic operations (never lose data)
+- Self-healing if corruption detected
+
+---
+
+## Integration Notes
+
+### Works With Any Editor
+- vim, nano, emacs
+- VS Code, Sublime Text
+- Word processors that save plain text
+- Any tool that edits text files
+
+### File System Integration
+- No special file formats
+- Your files remain normal text files
+- Versioning data stored separately
+- No clutter in your project directories
+
+---
+
+## Command Design Principles
+
+1. **Git Compatibility**: Commands match Git for zero learning curve
+2. **Smart Defaults**: Minimal required arguments
+3. **Helpful Output**: Every command provides clear next steps
+4. **Error Recovery**: Mistakes are easy to undo
+5. **Visual Feedback**: See your progress and position clearly
+
+The goal is to make versioning so simple that you use it automatically, without thinking about it.

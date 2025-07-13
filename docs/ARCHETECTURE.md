@@ -1,339 +1,282 @@
-# Oops Architecture Documentation
+# Oops Architecture Reference
 
 ## Design Philosophy
 
-Oops follows a **simplicity-first** approach to safe text editing. Unlike complex version control systems, Oops focuses on a single workflow: **backup → edit → decide**.
+Oops bridges the gap between simple file editing and powerful version control by hiding Git's complexity behind intuitive commands and automatic versioning.
 
 ### Core Principles
 
-- **Single Purpose**: Safe text file editing only
-- **Zero Learning Curve**: Intuitive commands that match mental models
-- **Atomic Operations**: All-or-nothing changes to prevent corruption
-- **Workspace Isolation**: Each project operates independently
-- **Git Foundation**: Leverages proven Git infrastructure without exposing complexity
+- **Zero Learning Curve**: Git's familiar commands without Git's complexity
+- **Single File Focus**: Eliminates multi-file coordination complexity
+- **Invisible Infrastructure**: Users never see Git repositories or technical details
+- **Auto-Everything**: Smart defaults eliminate decisions
+- **Git Compatibility**: Standard Git log output you already know
+- **Local First**: No network dependencies, works offline
+
+---
 
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    CLI Interface                        │
-├─────────────────────────────────────────────────────────┤
-│               Command Processors                        │
-├─────────────────────────────────────────────────────────┤
-│             Core Business Logic                         │
-├─────────────────────────────────────────────────────────┤
-│          File Operations & Git Abstraction              │
-├─────────────────────────────────────────────────────────┤
-│              File System & Git                          │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│         CLI Interface               │  Git-compatible commands
+├─────────────────────────────────────┤
+│      Auto-Versioning Engine        │  Smart version generation
+├─────────────────────────────────────┤
+│       Command Processors           │  Business logic per command
+├─────────────────────────────────────┤
+│     History & Navigation           │  Timeline management
+├─────────────────────────────────────┤
+│      Hidden Git Layer              │  Invisible repositories
+├─────────────────────────────────────┤
+│        File System                 │  Cross-platform storage
+└─────────────────────────────────────┘
 ```
+
+---
 
 ## Core Components
 
-### 1. CLI Interface Layer
-**Purpose**: Minimal argument parsing and user interaction
+### 1. CLI Interface
+- **Purpose**: Git-compatible command processing
+- **Design**: Zero external dependencies, direct argument parsing
+- **Output**: Standard Git output formats with familiar messaging
+- **Error Handling**: Git-style error messages with helpful suggestions
 
-**Key Files**:
-- `cli/index.js` - Main entry point
-- `cli/output.js` - Consistent output formatting
-- `cli/prompts.js` - Safety confirmations
+### 2. Auto-Versioning Engine
+- **Version Generation**: Automatic numbering (1.0 → 1.1 → 1.2)
+- **Branch Detection**: Creates branches when editing after navigation
+- **Change Analysis**: Generates smart descriptions of modifications
+- **Git Integration**: Uses standard Git formats for output compatibility
 
-**Design**: 
-- Zero external CLI frameworks
-- Direct argument parsing for speed
-- Consistent output patterns
+### 3. Command Processors
+Each command has dedicated logic:
+- **Validation**: Pre-flight checks and safety validations
+- **Execution**: Core functionality with atomic operations
+- **Feedback**: Clear success/failure messages with next steps
 
-### 2. Command Processors
-**Purpose**: Command-specific logic and validation
+### 4. History Management
+- **Navigation**: Maintains current position and forward/backward paths
+- **Timeline**: Tracks parent-child relationships between versions
+- **Metadata**: Stores timestamps, descriptions, and change statistics
 
-**Commands** (5 total):
-- **Core**: `oops <file>`, `diff`, `keep`, `undo`, `status`
+### 5. Hidden Git Layer
+- **Repository Per File**: Each versioned file gets isolated Git repo
+- **Invisible Storage**: Repositories stored in user data directory
+- **Git Commands**: Minimal set of operations (init, add, commit, tag, checkout)
+- **Abstraction**: Users never interact with Git directly
 
-**Pattern**:
-```javascript
-class Command {
-  async validate(args) { /* Pre-checks */ }
-  async execute(args) { /* Main logic */ }
-  async cleanup(error) { /* Error handling */ }
-}
-```
-
-### 3. Core Business Logic
-**Purpose**: Orchestrates file operations and maintains state
-
-**Services**:
-- `FileTracker` - Manages tracking state
-- `BackupManager` - Handles backup/restore operations  
-- `WorkspaceManager` - Manages workspace lifecycle
-- `DiffProcessor` - Generates diffs and summaries
-
-### 4. File Operations Layer
-**Purpose**: Abstracts file system and Git operations
-
-**Components**:
-- `FileSystem` - Safe file operations
-- `GitWrapper` - Simplified Git interface
-- `ConfigManager` - Configuration handling
-- `PathResolver` - Cross-platform path handling
+---
 
 ## Data Flow
 
-### File Tracking Lifecycle
-
-```mermaid
-graph LR
-    A[oops file.txt] --> B[Create Backup]
-    B --> C[User Edits]
-    C --> D[oops diff]
-    D --> E{Decision}
-    E -->|keep| F[Apply Changes]
-    E -->|undo| G[Restore Backup]
-    F --> I[Cleanup]
-    G --> I
+### Version Creation Process
+```
+User Edit → Change Detection → Version Generation → Git Commit → Update Timeline
 ```
 
-### Workspace Structure
+### Navigation Process
+```
+User Command → Validate Target → Git Checkout → Update File → Show Status
+```
 
+### Auto-Branching Logic
 ```
-.oops/                    # Workspace root
-├── config.json            # Local configuration
-├── state.json             # Tracking state
-└── files/                 # Per-file tracking
-    └── <file-hash>/        # Isolated file tracking
-        ├── .git/           # Git repository
-        ├── backup          # Original file backup
-        └── metadata.json   # File-specific metadata
+Current: 1.3 → Back to 1.1 → Edit & Save → Creates 1.1.1 (branch)
 ```
+
+---
 
 ## File System Design
 
-### Workspace Location Strategy
-
-1. **Local Mode** (default): `.oops/` in current directory
-2. **Temp Mode**: `$TMPDIR/oops-<project-hash>/`
-3. **Explicit Mode**: User-specified path
-
-### Path Resolution Priority
-
+### Storage Structure
 ```
-1. --workspace CLI option
-2. OOPS_WORKSPACE environment variable  
-3. Local .oops/ directory (if exists)
-4. Parent directory search (up to 5 levels)
-5. Configuration workspace.path setting
-6. Default: current directory
+~/.oops/
+├── files/
+│   ├── config-txt-hash123/
+│   │   ├── .git/              # Hidden Git repository
+│   │   ├── metadata.json      # Version timeline and navigation
+│   │   └── current.txt         # Working copy
+│   └── script-py-hash456/
+└── global.json                # User preferences
 ```
 
-### Cross-Platform Temp Directories
+### Benefits
+- **No Workspace Pollution**: Original directories stay clean
+- **Cross-Platform**: Works on Windows, macOS, Linux
+- **Isolated Files**: Each file has independent version history
+- **Easy Cleanup**: Delete directory to remove all history
 
-**Windows**: `%TEMP%\oops-<hash>\`  
-**Unix/Linux**: `${TMPDIR:-/tmp}/oops-<hash>/`  
-**macOS**: `$TMPDIR/oops-<hash>/`
+---
 
-Hash is generated from current working directory to ensure consistency.
+## Version Numbering System
 
-## Safety Mechanisms
+### Sequential Versioning
+- **Pattern**: Major.Minor (1.0, 1.1, 1.2, 1.3)
+- **Increment**: Always increases minor version
+- **Start**: Every file begins at 1.0
 
-### 1. Atomic Operations
-All file operations are wrapped in transactions:
+### Branch Versioning
+- **Pattern**: Major.Minor.Patch (1.2.1, 1.2.2, 1.2.3)
+- **Trigger**: Edit after navigating backward
+- **Logic**: Branch from the current position
 
-```javascript
-class Transaction {
-  constructor() {
-    this.operations = [];
-    this.rollbackActions = [];
-  }
-  
-  async execute() {
-    try {
-      for (const op of this.operations) {
-        const rollback = await op.execute();
-        this.rollbackActions.unshift(rollback);
-      }
-    } catch (error) {
-      await this.rollback();
-      throw error;
-    }
-  }
-}
-```
+### Complex Branching
+- **Pattern**: Major.Minor.Patch.Sub (1.1.1.1, 1.1.1.2)
+- **Use Case**: Branches from existing branches
+- **Depth**: Theoretically unlimited, practically limited
 
-### 2. Backup Strategy
-- **Primary backup**: Created during `begin`
-- **Pre-undo backup**: Current state saved before `undo`
-- **Final backup**: Snapshot before `keep` (optional)
+---
 
-### 3. Integrity Checks
-- File existence validation
-- Permission verification
-- Git repository health checks
-- Workspace consistency validation
+## Git Integration Strategy
 
-### 4. Error Recovery
-- Automatic rollback on failure
-- Corrupted workspace detection
-- Self-healing workspace repair
-- Graceful degradation
+### Hidden Repositories
+- **Location**: User data directory, not project directories
+- **Per-File**: One Git repo per versioned file
+- **Operations**: Only essential Git commands used
+- **Abstraction**: Complete isolation from user
 
-## Git Integration
+### Git Command Mapping
+- `oops commit` → `git add` + `git commit` + `git tag`
+- `oops checkout` → `git checkout <version>`
+- `oops diff` → `git diff` (output format preserved)
+- `oops log` → `git log --oneline --graph` (standard Git format)
 
-### Simplified Git Usage
-Oops uses Git for reliability but hides complexity:
+### Benefits of Git Foundation
+- **Reliability**: Battle-tested storage engine
+- **Efficiency**: Delta compression, fast operations
+- **Atomic**: All-or-nothing operations prevent corruption
+- **Portable**: Standard Git repositories (exportable if needed)
+- **Tool Compatibility**: Standard Git output works with existing tools
 
-```javascript
-class GitWrapper {
-  async init(path) {
-    await this.exec(['init', '--quiet'], { cwd: path });
-  }
-  
-  async backup(file, message = 'Initial backup') {
-    await this.exec(['add', file]);
-    await this.exec(['commit', '-m', message]);
-  }
-  
-  async diff(file) {
-    return await this.exec(['diff', 'HEAD', file]);
-  }
-}
-```
+---
 
-### Git Repository Per File
-Each tracked file gets its own Git repository for:
-- **Isolation**: Files don't interfere with each other
-- **Simplicity**: No branch management needed
-- **Performance**: Smaller repositories are faster
-- **Cleanup**: Easy to remove when done
+## Auto-Versioning Intelligence
 
-## Configuration System
+### Change Detection
+- **File Monitoring**: Hash-based change detection
+- **Diff Analysis**: Line-by-line comparison
+- **Smart Descriptions**: Pattern recognition for common changes
+- **Section Detection**: Identifies modified code/content sections
 
-### Configuration Hierarchy
-1. CLI arguments (highest priority)
-2. Environment variables
-3. Local config (`.oops/config.json`)
-4. Global config (`~/.oops/config.json`)
-5. Default values (lowest priority)
+### Version Generation
+- **Context Aware**: Knows current position in timeline
+- **Branch Logic**: Automatic branch creation when appropriate
+- **Conflict Prevention**: Single file eliminates merge conflicts
+- **Recovery**: Self-healing for corrupted timelines
 
-### Core Settings
-```json
-{
-  "workspace": {
-    "useTemp": false,
-    "path": null
-  },
-  "safety": {
-    "confirmKeep": true,
-    "confirmUndo": true,
-    "autoBackup": true
-  },
-  "diff": {
-    "tool": "auto",
-    "context": 3
-  }
-}
-```
+---
+
+## Safety & Reliability
+
+### Atomic Operations
+- **Principle**: All changes succeed completely or fail completely
+- **Implementation**: Transaction-style file operations
+- **Rollback**: Automatic cleanup on operation failure
+- **Integrity**: Consistent state guaranteed
+
+### Error Recovery
+- **Detection**: Automatic validation of Git repositories and metadata
+- **Self-Healing**: Rebuild corrupted timelines from Git history
+- **Graceful Degradation**: Partial functionality during problems
+- **User Guidance**: Clear recovery instructions for manual intervention
+
+### Data Protection
+- **Local Only**: No network operations, no remote storage
+- **User Permissions**: Operates within normal file system permissions
+- **No Sensitive Data**: Only stores file content and metadata
+- **Transparent**: All operations can be audited
+
+---
 
 ## Performance Considerations
 
 ### Optimization Strategies
-- **Lazy initialization**: Components load on-demand
-- **Minimal Git operations**: Only essential Git commands
-- **Efficient file handling**: Stream processing for large files
-- **Workspace caching**: Reuse workspace validation
+- **Lazy Loading**: Load version data on demand
+- **Efficient Diffing**: Stream processing for large files
+- **Minimal Git Operations**: Only necessary commands executed
+- **Caching**: Metadata cached between operations
 
 ### Scalability Limits
-- **File size**: Optimized for files up to 50MB
-- **Concurrent files**: Reasonable limit of 100 tracked files
-- **Workspace lifetime**: Auto-cleanup after 7 days
+- **File Size**: Optimized for files up to 10MB
+- **Version Count**: Efficient up to 1000 versions per file
+- **Response Time**: Sub-second operations for typical usage
+- **Concurrent Files**: No practical limit (each file independent)
 
-## Error Handling
+---
 
-### Error Categories
-```javascript
-class OopsError extends Error {
-  constructor(message, code, details = {}) {
-    super(message);
-    this.code = code;
-    this.details = details;
-  }
-}
+## Configuration & Customization
 
-// Specific error types
-class FileNotFoundError extends OopsError { }
-class WorkspaceCorruptedError extends OopsError { }
-class GitOperationError extends OopsError { }
-class ValidationError extends OopsError { }
-```
+### Zero-Config Philosophy
+- **Default Behavior**: Works immediately without configuration
+- **Smart Defaults**: Reasonable choices for most users
+- **Optional Config**: Advanced users can customize behavior
+- **Environment Variables**: Simple overrides for common preferences
 
-### Recovery Strategies
-- **Automatic**: Self-healing for minor issues
-- **Guided**: Step-by-step recovery instructions
-- **Manual**: Clear error messages for user action
-- **Graceful**: Fail safely without data loss
+### Extensibility Points
+- **Diff Tools**: Integration with external diff viewers
+- **Editors**: Editor-specific integration hooks
+- **Output Format**: Customizable display options
+- **Cleanup Policies**: Configurable retention and cleanup rules
 
-## Security Model
-
-### Principles
-- **No network operations**: Everything is local
-- **User permissions only**: Operate within user context
-- **File system isolation**: No access outside workspace
-- **No sensitive data storage**: Configuration only
-
-### Data Protection
-- **Permission validation**: Check before file operations
-- **Temporary file cleanup**: Secure deletion of temp files
-- **Workspace isolation**: Projects don't interfere
-- **Audit trail**: Track all file operations
+---
 
 ## Testing Strategy
 
 ### Unit Testing
-- Command processors
-- Core business logic
-- File system operations
-- Git wrapper functionality
+- Command processors with mocked dependencies
+- Version generation algorithms
+- Timeline rendering and navigation logic
+- Change analysis and description generation
 
 ### Integration Testing
-- End-to-end workflows
-- Cross-platform compatibility
-- Error scenario handling
-- Performance benchmarks
+- End-to-end command workflows
+- Git repository operations
+- Cross-platform file system handling
+- Error scenarios and recovery
 
-### Safety Testing
-- Data corruption scenarios
-- Interrupt handling
-- Permission edge cases
-- Workspace recovery
+### User Experience Testing
+- Command discoverability and intuitiveness
+- Error message clarity and helpfulness
+- Performance with various file sizes
+- Visual timeline readability and usefulness
 
-## Deployment Architecture
-
-### Distribution
-- **NPM package**: Primary distribution method
-- **Standalone binary**: For systems without Node.js
-- **Docker image**: For containerized environments
-
-### Installation Verification
-```bash
-oops --version     # Version check
-oops init --dry-run # Workspace test
-oops which         # Path verification
-```
+---
 
 ## Future Considerations
 
-### Potential Enhancements
-- **Plugin system**: Limited extension points
-- **Editor integration**: IDE/editor plugins
-- **Team workflows**: Basic sharing mechanisms
-- **Backup encryption**: For sensitive files
+### Enhancement Opportunities
+- **Editor Integration**: Plugins for popular editors
+- **Advanced Navigation**: Fuzzy search, date-based navigation
+- **Export Features**: Git repository export, format conversion
+- **Tool Integration**: Enhanced Git tool compatibility and delegation
 
-### Non-Goals
-- **Full version control**: Use Git instead
-- **Remote synchronization**: Use cloud storage
-- **Complex branching**: Keep it simple
-- **File watching**: Manual workflow only
+### Architectural Constraints
+- **Single File Focus**: Intentionally limited scope
+- **Local Only**: No remote synchronization
+- **No Plugins**: Simple, focused feature set
+- **Git Dependency**: Requires Git installation
 
-## Summary
+---
 
-Oops's architecture prioritizes **simplicity, safety, and reliability** over feature richness. By constraining scope and leveraging proven technologies (Git, file system primitives), it provides a robust foundation for safe text editing without the complexity of full version control systems.
+## Implementation Guidelines
 
-The modular design allows for future enhancements while maintaining the core promise: **make text editing safer without making it complicated**.
+### Command Design
+- Use Git-compatible verbs (commit, checkout, log, diff)
+- Provide smart defaults with Git-style behavior
+- Show helpful next steps with familiar Git messaging
+- Handle errors gracefully with Git-style error messages
+
+### Output Design
+- **Git Format Compatibility**: Use standard Git output formats
+- **Tool Integration**: Delegate to Git tools when appropriate
+- **Consistent Experience**: Familiar format for Git users
+- **Pipeable Output**: Works with existing Git-aware tools
+
+### Storage Design
+- Isolated per-file repositories
+- Predictable directory structure
+- Cross-platform path handling
+- Automatic cleanup strategies
+
+This architecture balances simplicity for users with powerful functionality, using Git's proven reliability while hiding its complexity completely.

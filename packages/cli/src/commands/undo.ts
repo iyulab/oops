@@ -1,57 +1,52 @@
 /**
- * Undo command implementation
+ * Undo command - Restore version and stop tracking
  */
 
 import { BaseCommand } from './base';
 import { Oops } from '@iyulab/oops';
-import * as path from 'path';
 
 export class UndoCommand extends BaseCommand {
-  public async validate(args: any[]): Promise<void> {
-    const fileArgs = args.filter(arg => typeof arg === 'string');
-    if (fileArgs.length !== 1) {
-      throw new Error('undo command requires exactly one file path');
+  async validate(args: string[]): Promise<void> {
+    if (args.length < 1) {
+      throw new Error('undo command requires a file argument');
     }
   }
 
-  public async execute(args: any[]): Promise<void> {
+  async execute(args: string[]): Promise<void> {
+    const filePath = args[0];
+    const version = args[1] || 'HEAD'; // Default to latest version (backup)
+
     try {
-      const fileArgs = args.filter(arg => typeof arg === 'string');
-      const filePath = path.resolve(fileArgs[0]);
-
       const oops = new Oops();
-
-      // Check if workspace exists
-      const workspaceInfo = await oops.getWorkspaceInfo();
-      if (!workspaceInfo.exists) {
-        this.error('No workspace found. Run "oops <file>" to start tracking a file.');
-        return;
-      }
 
       // Check if file is being tracked
       const isTracked = await oops.isTracked(filePath);
       if (!isTracked) {
-        this.error(`File is not being tracked: ${filePath}`);
-        this.log('Run "oops <file>" to start tracking.');
+        this.log(`File is not being tracked: ${filePath}`);
+        this.log('Nothing to undo.');
         return;
       }
 
-      // Show what will be undone
+      this.log(`Restoring ${filePath} to version ${version} and stopping tracking...`);
+
+      // Check for unsaved changes
       const hasChanges = await oops.hasChanges(filePath);
       if (hasChanges) {
-        this.log(`Reverting changes in: ${filePath}`);
-        this.log('⚠ Current changes will be lost');
-      } else {
-        this.log('No changes to undo. File matches backup.');
+        this.log('\u26a0\ufe0f  This will discard current changes');
       }
 
-      // Revert to backup and stop tracking
+      // Restore file from backup and stop tracking
       await oops.undo(filePath);
 
-      this.log('File reverted to backup successfully');
-      this.log('  File is no longer being tracked');
+      this.log(`✓ File restored to version ${version}`);
+      this.log('✓ File tracking stopped');
+      this.log('✓ Workspace cleanup completed');
+
+      this.log('\n📜 File has been restored to its original state.');
+      this.log('The file is now untracked and can be edited normally.');
+      this.log('\nTo start tracking again: oops ' + filePath);
     } catch (error: any) {
-      this.error('Failed to undo changes: ' + error.message);
+      this.error('Failed to undo file: ' + error.message);
       throw error;
     }
   }

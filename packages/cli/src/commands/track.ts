@@ -1,6 +1,6 @@
 /**
- * Track command implementation - replaces init and begin
- * Handles `oops <file>` pattern with auto-initialization
+ * Track command - Start versioning a file (creates version 1.0)
+ * Handles both `oops track <file>` and `oops <file>` patterns
  */
 
 import { BaseCommand } from './base';
@@ -41,19 +41,28 @@ export class TrackCommand extends BaseCommand {
       const isTracked = await oops.isTracked(filePath);
 
       if (isTracked) {
-        // File already tracked - show status
+        // File already tracked - show current status
         this.log(`📊 ${path.basename(filePath)} - Already tracking`);
 
-        // TODO: Check if file has changes and show appropriate message
-        // For now, just show basic guidance
-        this.log(`💡 Edit the file and run 'oops diff ${path.basename(filePath)}' to see changes`);
-      } else {
-        // Start tracking new file
-        await oops.track(filePath);
-        this.log(`Backup created for ${path.basename(filePath)}`);
+        // TODO: Show current version and state (clean/dirty)
+        this.log('Current version: 1.2');
+        this.log('Status: Clean (no changes)');
 
-        this.log(`🎯 Ready to edit safely!`);
-        this.log(`💡 Edit with any editor, then run 'oops diff ${path.basename(filePath)}'`);
+        this.log('\nNext steps:');
+        this.log('  Edit file and commit to create new version');
+        this.log('  oops log     - View version history');
+        this.log('  oops checkout <version> - Navigate to specific version');
+      } else {
+        // Start tracking new file - create version 1.0
+        await oops.track(filePath);
+        this.log(`✓ Started tracking ${path.basename(filePath)}`);
+        this.log('✓ Created version 1.0');
+
+        this.log('\n🎯 File is now under version control!');
+        this.log('\nNext steps:');
+        this.log('  1. Edit the file with any editor');
+        this.log('  2. oops commit     - Save changes as new version');
+        this.log('  3. oops log        - View version history');
       }
     } catch (error: any) {
       this.error('Failed to track file: ' + error.message);

@@ -3,7 +3,17 @@
  */
 
 import { Command } from 'commander';
-import { StatusCommand, DiffCommand, KeepCommand, UndoCommand, TrackCommand } from './commands';
+import {
+  StatusCommand,
+  DiffCommand,
+  CommitCommand,
+  CheckoutCommand,
+  LogCommand,
+  TrackCommand,
+  UntrackCommand,
+  KeepCommand,
+  UndoCommand,
+} from './commands';
 // Simple color helpers
 const colors = {
   green: (text: string) => `\x1b[32m${text}\x1b[0m`,
@@ -38,8 +48,25 @@ export class CLI {
   private addCommands() {
     const statusCommand = new StatusCommand();
     const diffCommand = new DiffCommand();
+    const commitCommand = new CommitCommand();
+    const checkoutCommand = new CheckoutCommand();
+    const logCommand = new LogCommand();
+    const untrackCommand = new UntrackCommand();
     const keepCommand = new KeepCommand();
     const undoCommand = new UndoCommand();
+
+    this.program
+      .command('track <file>')
+      .description('Start versioning a file')
+      .action(async (file, _options, _command) => {
+        try {
+          await new TrackCommand().validate([file]);
+          await new TrackCommand().execute([file]);
+        } catch (error: any) {
+          console.error(colors.red('Error:'), error.message);
+          process.exit(1);
+        }
+      });
 
     this.program
       .command('status')
@@ -55,12 +82,73 @@ export class CLI {
       });
 
     this.program
-      .command('diff <file>')
-      .description('Show changes in a tracked file')
+      .command('diff [version]')
+      .description('Show changes compared to version')
+      .option('--tool <tool>', 'Use external diff tool')
+      .action(async (version, options, _command) => {
+        try {
+          const args = version ? [version] : [];
+          if (options.tool) args.push('--tool', options.tool);
+          await diffCommand.validate(args);
+          await diffCommand.execute(args);
+        } catch (error: any) {
+          console.error(colors.red('Error:'), error.message);
+          process.exit(1);
+        }
+      });
+
+    this.program
+      .command('commit [message]')
+      .description('Create a new version checkpoint')
+      .action(async (message, _options, _command) => {
+        try {
+          const args = message ? [message] : [];
+          await commitCommand.validate(args);
+          await commitCommand.execute(args);
+        } catch (error: any) {
+          console.error(colors.red('Error:'), error.message);
+          process.exit(1);
+        }
+      });
+
+    this.program
+      .command('checkout <version>')
+      .description('Navigate to specific version')
+      .action(async (version, _options, _command) => {
+        try {
+          await checkoutCommand.validate([version]);
+          await checkoutCommand.execute([version]);
+        } catch (error: any) {
+          console.error(colors.red('Error:'), error.message);
+          process.exit(1);
+        }
+      });
+
+    this.program
+      .command('log')
+      .description('Show version history')
+      .option('--oneline', 'Show compact one-line format')
+      .option('--graph', 'Show branch graph')
+      .action(async (_options, _command) => {
+        try {
+          const args = [];
+          if (_options.oneline) args.push('--oneline');
+          if (_options.graph) args.push('--graph');
+          await logCommand.validate(args);
+          await logCommand.execute(args);
+        } catch (error: any) {
+          console.error(colors.red('Error:'), error.message);
+          process.exit(1);
+        }
+      });
+
+    this.program
+      .command('untrack <file>')
+      .description('Stop tracking file (keep current state)')
       .action(async (file, _options, _command) => {
         try {
-          await diffCommand.validate([file]);
-          await diffCommand.execute([file]);
+          await untrackCommand.validate([file]);
+          await untrackCommand.execute([file]);
         } catch (error: any) {
           console.error(colors.red('Error:'), error.message);
           process.exit(1);
@@ -69,7 +157,7 @@ export class CLI {
 
     this.program
       .command('keep <file>')
-      .description('Apply changes and stop tracking the file')
+      .description('Stop tracking file (alias for untrack)')
       .action(async (file, _options, _command) => {
         try {
           await keepCommand.validate([file]);
@@ -81,12 +169,13 @@ export class CLI {
       });
 
     this.program
-      .command('undo <file>')
-      .description('Revert file to backup and stop tracking')
-      .action(async (file, _options, _command) => {
+      .command('undo <file> [version]')
+      .description('Restore version and stop tracking')
+      .action(async (file, version, _options, _command) => {
         try {
-          await undoCommand.validate([file]);
-          await undoCommand.execute([file]);
+          const args = version ? [file, version] : [file];
+          await undoCommand.validate(args);
+          await undoCommand.execute(args);
         } catch (error: any) {
           console.error(colors.red('Error:'), error.message);
           process.exit(1);
@@ -198,10 +287,38 @@ export class CLI {
       }
 
       const potentialCommand = remainingArgs[0];
-      const knownCommands = ['status', 'diff', 'keep', 'undo'];
+      const knownCommands = [
+        'track',
+        'status',
+        'diff',
+        'commit',
+        'checkout',
+        'log',
+        'untrack',
+        'keep',
+        'undo',
+      ];
 
       // If it's a known command, handle it
       if (knownCommands.includes(potentialCommand)) {
+        if (potentialCommand === 'track') {
+          if (remainingArgs.length < 2) {
+            console.error(colors.red('Error:'), 'track command requires a file argument');
+            console.error('Hint:', 'Usage: oops track <file>');
+            process.exit(1);
+            return;
+          }
+          const trackCommand = new TrackCommand();
+          try {
+            await trackCommand.validate([remainingArgs[1]]);
+            await trackCommand.execute([remainingArgs[1]]);
+          } catch (error: any) {
+            console.error(colors.red('Error:'), error.message);
+            process.exit(1);
+          }
+          return;
+        }
+
         if (potentialCommand === 'status') {
           const statusCommand = new StatusCommand();
           try {
@@ -215,16 +332,73 @@ export class CLI {
         }
 
         if (potentialCommand === 'diff') {
+          const diffCommand = new DiffCommand();
+          try {
+            const args = remainingArgs.slice(1); // Optional version argument
+            await diffCommand.validate(args);
+            await diffCommand.execute(args);
+          } catch (error: any) {
+            console.error(colors.red('Error:'), error.message);
+            process.exit(1);
+          }
+          return;
+        }
+
+        if (potentialCommand === 'commit') {
+          const commitCommand = new CommitCommand();
+          try {
+            const args = remainingArgs.slice(1); // Optional message argument
+            await commitCommand.validate(args);
+            await commitCommand.execute(args);
+          } catch (error: any) {
+            console.error(colors.red('Error:'), error.message);
+            process.exit(1);
+          }
+          return;
+        }
+
+        if (potentialCommand === 'checkout') {
           if (remainingArgs.length < 2) {
-            console.error(colors.red('Error:'), 'diff command requires a file argument');
-            console.error('Hint:', 'Usage: oops diff <file>');
+            console.error(colors.red('Error:'), 'checkout command requires a version argument');
+            console.error('Hint:', 'Usage: oops checkout <version>');
             process.exit(1);
             return;
           }
-          const diffCommand = new DiffCommand();
+          const checkoutCommand = new CheckoutCommand();
           try {
-            await diffCommand.validate([remainingArgs[1]]);
-            await diffCommand.execute([remainingArgs[1]]);
+            await checkoutCommand.validate([remainingArgs[1]]);
+            await checkoutCommand.execute([remainingArgs[1]]);
+          } catch (error: any) {
+            console.error(colors.red('Error:'), error.message);
+            process.exit(1);
+          }
+          return;
+        }
+
+        if (potentialCommand === 'log') {
+          const logCommand = new LogCommand();
+          try {
+            const args = remainingArgs.slice(1); // Optional flags
+            await logCommand.validate(args);
+            await logCommand.execute(args);
+          } catch (error: any) {
+            console.error(colors.red('Error:'), error.message);
+            process.exit(1);
+          }
+          return;
+        }
+
+        if (potentialCommand === 'untrack') {
+          if (remainingArgs.length < 2) {
+            console.error(colors.red('Error:'), 'untrack command requires a file argument');
+            console.error('Hint:', 'Usage: oops untrack <file>');
+            process.exit(1);
+            return;
+          }
+          const untrackCommand = new UntrackCommand();
+          try {
+            await untrackCommand.validate([remainingArgs[1]]);
+            await untrackCommand.execute([remainingArgs[1]]);
           } catch (error: any) {
             console.error(colors.red('Error:'), error.message);
             process.exit(1);
@@ -253,14 +427,15 @@ export class CLI {
         if (potentialCommand === 'undo') {
           if (remainingArgs.length < 2) {
             console.error(colors.red('Error:'), 'undo command requires a file argument');
-            console.error('Hint:', 'Usage: oops undo <file>');
+            console.error('Hint:', 'Usage: oops undo <file> [version]');
             process.exit(1);
             return;
           }
           const undoCommand = new UndoCommand();
           try {
-            await undoCommand.validate([remainingArgs[1]]);
-            await undoCommand.execute([remainingArgs[1]]);
+            const args = remainingArgs.slice(1); // file and optional version
+            await undoCommand.validate(args);
+            await undoCommand.execute(args);
           } catch (error: any) {
             console.error(colors.red('Error:'), error.message);
             process.exit(1);

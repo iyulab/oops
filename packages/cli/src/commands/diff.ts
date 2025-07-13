@@ -1,88 +1,97 @@
 /**
- * Diff command implementation
+ * Diff command implementation - Git-style version comparison
  */
 
 import { BaseCommand } from './base';
 import { Oops } from '@iyulab/oops';
-import * as path from 'path';
 
 export class DiffCommand extends BaseCommand {
   public async validate(args: any[]): Promise<void> {
-    const fileArgs = args.filter(arg => typeof arg === 'string');
-    if (fileArgs.length !== 1) {
-      throw new Error('diff command requires exactly one file path');
+    // Version argument is optional - if not provided, compare with previous version
+    const fileArgs = args.filter(arg => typeof arg === 'string' && !arg.startsWith('--'));
+    if (fileArgs.length > 1) {
+      throw new Error('diff command takes at most one version argument');
     }
   }
 
   public async execute(args: any[]): Promise<void> {
     try {
-      const fileArgs = args.filter(arg => typeof arg === 'string');
-      const filePath = path.resolve(fileArgs[0]);
+      const fileArgs = args.filter(arg => typeof arg === 'string' && !arg.startsWith('--'));
+      const version = fileArgs[0] || 'HEAD~1'; // Default to previous version
+      const toolOption = this.parseToolOption(args);
 
       const oops = new Oops();
 
-      // Check if workspace exists
+      // Get workspace info
       const workspaceInfo = await oops.getWorkspaceInfo();
       if (!workspaceInfo.exists) {
-        this.error('No workspace found. Run "oops <file>" to start tracking a file.');
-        return;
+        throw new Error('No workspace found. Start tracking a file first with: oops <file>');
       }
 
-      // Check if file is being tracked
-      const isTracked = await oops.isTracked(filePath);
-      if (!isTracked) {
-        this.error(`File is not being tracked: ${filePath}`);
-        this.log('Run "oops <file>" to start tracking.');
-        return;
+      // Get all tracked files
+      const trackedFiles = await oops.getAllTrackedFiles();
+      if (trackedFiles.length === 0) {
+        throw new Error('No files being tracked. Start tracking a file first with: oops <file>');
       }
 
-      // Get diff
-      const diffResult = await oops.diff(filePath);
+      this.log(`Comparing with version: ${version}`);
 
-      if (!diffResult.hasChanges) {
-        this.log('No changes detected');
-        return;
+      if (toolOption) {
+        this.log(`Using external tool: ${toolOption}`);
       }
 
-      this.log(`Changes in ${filePath}:`);
-      this.log(`  Lines added: ${diffResult.addedLines}`);
-      this.log(`  Lines removed: ${diffResult.removedLines}`);
-      this.log(`  Lines modified: ${diffResult.modifiedLines}`);
-      this.log('');
+      // Show diff for each tracked file that has changes
+      let hasAnyDiff = false;
 
-      // Show basic diff (TODO: improve diff output)
-      const trackingInfo = await oops.getTrackingInfo(filePath);
+      for (const file of trackedFiles) {
+        const hasChanges = await oops.hasChanges(file.filePath);
 
-      // Read backup and current content
-      const fs = await import('fs/promises');
-      const backupContent = await fs.readFile(trackingInfo.backupPath, 'utf8');
-      const currentContent = await fs.readFile(filePath, 'utf8');
+        if (hasChanges) {
+          hasAnyDiff = true;
+          const diffResult = await oops.diff(file.filePath);
 
-      this.log('--- backup (original)');
-      this.log('+++ current');
-      this.log('');
+          // Show Git-style diff header
+          this.log(`\ndiff --git a/${file.filePath} b/${file.filePath}`);
+          this.log(`index backup..current 100644`);
+          this.log(`--- a/${file.filePath}`);
+          this.log(`+++ b/${file.filePath}`);
 
-      // Simple line-by-line comparison
-      const backupLines = backupContent.split('\n');
-      const currentLines = currentContent.split('\n');
-
-      const maxLines = Math.max(backupLines.length, currentLines.length);
-      for (let i = 0; i < maxLines; i++) {
-        const backupLine = backupLines[i] || '';
-        const currentLine = currentLines[i] || '';
-
-        if (backupLine !== currentLine) {
-          if (backupLines[i] !== undefined) {
-            this.log(`- ${backupLine}`);
+          // Show the actual diff content
+          if (diffResult.diff) {
+            this.log(diffResult.diff);
+          } else {
+            this.log(`@@ -1,1 +1,1 @@`);
+            this.log(`-[previous content]`);
+            this.log(`+[current content]`);
           }
-          if (currentLines[i] !== undefined) {
-            this.log(`+ ${currentLine}`);
-          }
+
+          this.log(
+            `\n${diffResult.addedLines} insertions(+), ${diffResult.removedLines} deletions(-)`
+          );
         }
+      }
+
+      if (!hasAnyDiff) {
+        this.log('No changes detected in tracked files');
+        this.log('\nTip: Edit your files and run diff again to see changes');
+      }
+
+      if (toolOption && hasAnyDiff) {
+        this.log(`\nNote: External diff tool integration not yet implemented`);
+        this.log(`Tool: ${toolOption}`);
+        // TODO: Phase 3b - Launch external diff tool
       }
     } catch (error: any) {
       this.error('Failed to generate diff: ' + error.message);
       throw error;
     }
+  }
+
+  private parseToolOption(args: string[]): string | null {
+    const toolIndex = args.findIndex(arg => arg === '--tool');
+    if (toolIndex >= 0 && toolIndex + 1 < args.length) {
+      return args[toolIndex + 1];
+    }
+    return null;
   }
 }
