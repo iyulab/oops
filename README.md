@@ -26,43 +26,27 @@ oops oops!                    # ↩️  Made a mistake? Go back!
 
 ## Commands
 
-### Friendly Commands (Recommended)
+| Command | Git-style | Description |
+|---------|-----------|-------------|
+| `oops start <file>` | `track` | 👀 Start versioning a file |
+| `oops save [message]` | `commit` | 📸 Save a snapshot |
+| `oops back <N>` | `checkout` | ⏪ Go back to snapshot #N |
+| `oops oops!` | - | ↩️ Undo (restore last saved state) |
+| `oops history` | `log` | 📜 View all snapshots |
+| `oops changes` | `diff` | 🔍 See what changed |
+| `oops now` | `status` | ℹ️ Show current status |
+| `oops files` | `ls` | 📁 List tracked files |
+| `oops done` | `untrack` | 🗑️ Stop versioning |
+| `oops config` | - | ⚙️ Manage configuration |
+| `oops gc` | - | 🧹 Clean up orphaned stores |
 
-| Command | Description |
-|---------|-------------|
-| `oops start <file>` | 👀 Start versioning a file |
-| `oops save [message]` | 📸 Save a snapshot |
-| `oops back <N>` | ⏪ Go back to snapshot #N |
-| `oops oops!` | ↩️ Undo (restore last saved state) |
-| `oops history` | 📜 View all snapshots |
-| `oops changes` | 🔍 See what changed |
-| `oops now` | ℹ️ Show current status |
-| `oops files` | 📁 List tracked files |
-| `oops done` | 🗑️ Stop versioning |
-| `oops config` | ⚙️ Manage configuration |
-| `oops gc` | 🧹 Clean up orphaned stores |
-
-### Global Flags
+### Flags
 
 | Flag | Description |
 |------|-------------|
 | `-g, --global` | Use global storage (`~/.oops/`) |
 | `-l, --local` | Use local storage (`.oops/`) - overrides config |
 | `-a, --all` | Show both local and global (for `files` command) |
-
-### Developer Aliases
-
-If you're familiar with Git, these work too:
-
-| Friendly | Git-style |
-|----------|-----------|
-| `start` | `track` |
-| `save` | `commit` |
-| `back` | `checkout` |
-| `history` | `log` |
-| `changes` | `diff` |
-| `now` | `status` |
-| `done` | `untrack` |
 
 ## Examples
 
