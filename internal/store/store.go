@@ -21,7 +21,6 @@ var (
 	ErrNoChanges          = errors.New("no changes to save")
 	ErrVersionNotFound    = errors.New("version not found")
 	ErrUncommittedChanges = errors.New("uncommitted changes exist")
-	ErrGitNotInstalled    = errors.New("git is not installed")
 )
 
 // Store manages versioning for a single file using Git backend

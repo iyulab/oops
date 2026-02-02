@@ -2,7 +2,7 @@
 
 **Oops! Made a mistake? No worries - you can always go back!**
 
-A single binary with zero runtime dependencies. Git-powered but Git-knowledge not required.
+A single binary with zero runtime dependencies. No Git installation required.
 
 ## Installation
 
@@ -11,8 +11,6 @@ go install github.com/iyulab/oops@latest
 ```
 
 Or download from [GitHub Releases](https://github.com/iyulab/oops/releases).
-
-> **Requires**: Git installed on your system
 
 ## Quick Start
 
@@ -102,17 +100,17 @@ oops now
 
 ## How It Works
 
-Oops uses Git under the hood, but hides all the complexity:
+Oops uses an embedded Git library (go-git) - no external Git installation needed:
 
 ```
 project/
 ├── notes.md
 └── .oops/
-    └── notes.md.git/    ← Git repository (hidden)
+    └── notes.md.git/    ← Version storage (hidden)
 ```
 
-- Each snapshot = Git commit + tag (v1, v2, v3...)
-- Full Git delta compression for storage efficiency
+- Each snapshot = commit + tag (v1, v2, v3...)
+- Delta compression for storage efficiency
 - Works completely offline, no server needed
 - `.oops/` automatically added to `.gitignore`
 
