@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var Version = "0.2.0"
+var Version = "0.2.1"
 
 var rootCmd = &cobra.Command{
 	Use:     "oops",
@@ -15,7 +15,7 @@ var rootCmd = &cobra.Command{
 	Version: Version,
 	Long: `Oops - Simple file versioning for everyone 🎯
 
-Oops! 실수해도 괜찮아요 - 언제든 되돌릴 수 있으니까!
+Oops! Made a mistake? No worries - you can always go back!
 
 Quick Start:
   oops start myfile.txt     👀 Start versioning
