@@ -1,8 +1,8 @@
-# Oops - Git-Style Single File Versioning
+# Oops - Simple File Versioning for Everyone 🎯
 
-**Familiar Git commands, simplified for single files.**
+**Oops! Made a mistake? No worries - you can always go back!**
 
-A single binary with zero dependencies. No Git, no Node.js, no runtime required.
+A single binary with zero runtime dependencies. Git-powered but Git-knowledge not required.
 
 ## Installation
 
@@ -12,91 +12,134 @@ go install github.com/iyulab/oops@latest
 
 Or download from [GitHub Releases](https://github.com/iyulab/oops/releases).
 
+> **Requires**: Git installed on your system
+
 ## Quick Start
 
 ```bash
-oops track config.txt       # Start versioning
-vim config.txt              # Edit with any editor
-oops commit "updated"       # Save checkpoint
-oops diff                   # See changes
-oops checkout 1             # Go back if needed
+oops start essay.txt          # 👀 Start versioning
+# ... write something ...
+oops save "first draft"       # 📸 Save a snapshot
+# ... edit more ...
+oops save "added conclusion"  # 📸 Save another
+oops history                  # 📜 View all snapshots
+oops oops!                    # ↩️  Made a mistake? Go back!
 ```
 
 ## Commands
 
+### Friendly Commands (Recommended)
+
 | Command | Description |
 |---------|-------------|
-| `oops track <file>` | Start versioning (creates version 1) |
-| `oops commit [message]` | Create next version |
-| `oops checkout <version>` | Navigate to version (`-f` to force) |
-| `oops diff [version]` | Show changes |
-| `oops log` | Show version history |
-| `oops status` | Show current state |
-| `oops list` | List tracked files |
-| `oops untrack` | Stop tracking |
+| `oops start <file>` | 👀 Start versioning a file |
+| `oops save [message]` | 📸 Save a snapshot |
+| `oops back <N>` | ⏪ Go back to snapshot #N |
+| `oops oops!` | ↩️ Undo (restore last saved state) |
+| `oops history` | 📜 View all snapshots |
+| `oops changes` | 🔍 See what changed |
+| `oops now` | ℹ️ Show current status |
+| `oops files` | 📁 List tracked files |
+| `oops done` | 🗑️ Stop versioning |
+
+### Developer Aliases
+
+If you're familiar with Git, these work too:
+
+| Friendly | Git-style |
+|----------|-----------|
+| `start` | `track` |
+| `save` | `commit` |
+| `back` | `checkout` |
+| `history` | `log` |
+| `changes` | `diff` |
+| `now` | `status` |
+| `done` | `untrack` |
 
 ## Examples
 
 ### Basic Workflow
 
 ```bash
-oops track notes.md       # Version 1
+oops start notes.md           # Snapshot #1 created
+# ... write ...
+oops save "brain dump"        # Snapshot #2
 # ... edit ...
-oops commit "first draft" # Version 2
-# ... edit ...
-oops commit "revisions"   # Version 3
+oops save "organized thoughts"  # Snapshot #3
 ```
 
-### Compare Versions
+### Oops! Moments
 
 ```bash
-oops diff          # Working file vs current version
-oops diff 1        # Working file vs version 1
-oops diff 1 3      # Version 1 vs version 3
+# Accidentally deleted important text?
+oops oops!                    # Restores to last saved state
+
+# Want to see an older version?
+oops back 1                   # Go to snapshot #1
+oops back 3                   # Jump back to snapshot #3
 ```
 
-### Navigation
+### See What Changed
 
 ```bash
-oops log           # See all versions
-oops checkout 2    # Jump to version 2
-oops checkout -f 1 # Force checkout (discard uncommitted changes)
+oops changes                  # Unsaved changes vs last snapshot
+oops changes 1                # Current vs snapshot #1
+oops changes 1 3              # Compare snapshot #1 and #3
 ```
 
-### Branching from Past
+### Check Status
 
 ```bash
-# At version 10, go back to version 2
-oops checkout 2
-# ... edit ...
-oops commit "new direction"  # Creates version 11 (from v2)
+oops now
+# 📄 File:     notes.md
+# 📍 Snapshot: #3 (latest)
+# ✏️  Status:   Modified
+#
+#   You have unsaved changes
+#     oops save    Save your changes
+#     oops oops!   Undo changes
 ```
-
-All versions preserved. No data loss.
 
 ## How It Works
 
-Versions stored in `.oops/` alongside your file:
+Oops uses Git under the hood, but hides all the complexity:
 
 ```
 project/
-├── config.txt
+├── notes.md
 └── .oops/
-    └── {hash}/
-        ├── meta.json
-        └── versions/
-            ├── 1
-            ├── 2
-            └── 3
+    └── notes.md.git/    ← Git repository (hidden)
 ```
 
-Automatically added to `.gitignore` if present.
+- Each snapshot = Git commit + tag (v1, v2, v3...)
+- Full Git delta compression for storage efficiency
+- Works completely offline, no server needed
+- `.oops/` automatically added to `.gitignore`
 
 ## Use Cases
 
-**Good for**: Config files, scripts, documentation, notes
+**Perfect for:**
+- 📝 Writers - essays, articles, manuscripts
+- 📊 Researchers - notes, data files
+- ⚙️ Config files - when you need quick rollback
+- 📋 Any single file you edit frequently
 
-**Not for**: Multi-file projects, binary files, team collaboration → use Git
+**For multi-file projects:** Use Git directly
+
+## Comparison
+
+| Feature | Oops | Git |
+|---------|------|-----|
+| Learning curve | 5 minutes | Hours |
+| Commands to learn | ~5 | ~20+ |
+| Single file focus | ✓ | Multi-file |
+| Server required | No | Optional |
+| Storage efficiency | Git-level | Git |
+| Undo mistakes | `oops oops!` | `git checkout HEAD -- file` |
+
+## Why "Oops"?
+
+Because everyone makes mistakes when editing files. With Oops, you can simply say "oops!" and go back to a safe state. No complex commands, no fear of losing work.
 
 ## License
 

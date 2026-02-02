@@ -1,2 +1,24 @@
 # local
 dev-docs/
+
+# Binaries
+oops
+oops.exe
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+testdata/
+coverage.out
+
+# Oops version storage
+.oops/
