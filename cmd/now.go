@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/iyulab/oops/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -30,6 +31,10 @@ func runNow(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("📄 File:     %s\n", s.FileName)
 
+	if s.Global {
+		fmt.Printf("🌐 Mode:     Global (%s)\n", s.OopsDirPath())
+	}
+
 	if current == latest {
 		fmt.Printf("📍 Snapshot: #%d (latest)\n", current)
 	} else {
@@ -44,6 +49,15 @@ func runNow(cmd *cobra.Command, args []string) error {
 		info("  oops oops!   Undo changes")
 	} else {
 		fmt.Printf("✓  Status:   Clean\n")
+	}
+
+	// Check for duplicate tracking
+	hasLocal, hasGlobal := store.CheckDuplicateTracking(s.FilePath)
+	if hasLocal && hasGlobal {
+		fmt.Println()
+		warn("This file is tracked in both local and global storage!")
+		info("  oops done      Stop local tracking")
+		info("  oops done -g   Stop global tracking")
 	}
 
 	return nil

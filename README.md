@@ -39,6 +39,16 @@ oops oops!                    # ↩️  Made a mistake? Go back!
 | `oops now` | ℹ️ Show current status |
 | `oops files` | 📁 List tracked files |
 | `oops done` | 🗑️ Stop versioning |
+| `oops config` | ⚙️ Manage configuration |
+| `oops gc` | 🧹 Clean up orphaned stores |
+
+### Global Flags
+
+| Flag | Description |
+|------|-------------|
+| `-g, --global` | Use global storage (`~/.oops/`) |
+| `-l, --local` | Use local storage (`.oops/`) - overrides config |
+| `-a, --all` | Show both local and global (for `files` command) |
 
 ### Developer Aliases
 
@@ -100,7 +110,9 @@ oops now
 
 ## How It Works
 
-Oops uses an embedded Git library (go-git) - no external Git installation needed:
+Oops uses an embedded Git library (go-git) - no external Git installation needed.
+
+### Local Storage (Default)
 
 ```
 project/
@@ -109,10 +121,40 @@ project/
     └── notes.md.git/    ← Version storage (hidden)
 ```
 
+### Global Storage (`-g` flag)
+
+Keep your project directory clean by storing versions in your home directory:
+
+```bash
+oops start -g notes.md    # Store in ~/.oops/
+oops files -g             # List global tracked files
+oops gc -g                # Clean orphaned global stores
+```
+
+```
+~/.oops/
+└── a1b2c3d4.../          ← Hash-based directory
+    ├── metadata.txt      ← Original file path
+    └── notes.md.git/     ← Version storage
+```
+
+### Configuration
+
+Set global as default mode:
+
+```bash
+oops config --default-global   # Always use global storage
+oops config --default-local    # Use local storage (default)
+oops config                    # Show current settings
+```
+
+### Features
+
 - Each snapshot = commit + tag (v1, v2, v3...)
 - Delta compression for storage efficiency
 - Works completely offline, no server needed
 - `.oops/` automatically added to `.gitignore`
+- Cross-platform path handling (Windows/Unix)
 
 ## Use Cases
 

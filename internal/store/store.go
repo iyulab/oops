@@ -1,6 +1,8 @@
 package store
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -12,7 +14,8 @@ import (
 )
 
 const (
-	OopsDir = ".oops"
+	OopsDir       = ".oops"
+	GlobalOopsDir = ".oops" // stored in user home directory
 )
 
 var (
@@ -23,6 +26,11 @@ var (
 	ErrUncommittedChanges = errors.New("uncommitted changes exist")
 )
 
+// StoreOptions configures Store behavior
+type StoreOptions struct {
+	Global bool // Use global storage in user home directory
+}
+
 // Store manages versioning for a single file using Git backend
 type Store struct {
 	FilePath string
@@ -30,13 +38,52 @@ type Store struct {
 	BaseDir  string
 	GitDir   string
 	Repo     *git.Repo
+	Global   bool // true if using global storage
 }
 
 // Snapshot represents a version snapshot (re-exported from git package)
 type Snapshot = git.Snapshot
 
-// NewStore creates a store instance for a file
+// GetGlobalOopsDir returns the global .oops directory path
+func GetGlobalOopsDir() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot determine home directory: %w", err)
+	}
+	return filepath.Join(homeDir, GlobalOopsDir), nil
+}
+
+// normalizePath normalizes file path for cross-platform compatibility
+// Converts backslashes to forward slashes and lowercases drive letters on Windows
+func normalizePath(absPath string) string {
+	// Convert backslashes to forward slashes for consistency
+	normalized := strings.ReplaceAll(absPath, "\\", "/")
+	// Lowercase drive letter on Windows (e.g., C: -> c:)
+	if len(normalized) >= 2 && normalized[1] == ':' {
+		normalized = strings.ToLower(normalized[:1]) + normalized[1:]
+	}
+	return normalized
+}
+
+// hashFilePath creates a short hash from file path for global storage
+func hashFilePath(absPath string) string {
+	normalized := normalizePath(absPath)
+	hash := sha256.Sum256([]byte(normalized))
+	return hex.EncodeToString(hash[:8]) // 16 chars
+}
+
+// NewStore creates a store instance for a file (local mode)
 func NewStore(filePath string) (*Store, error) {
+	return NewStoreWithOptions(filePath, StoreOptions{Global: false})
+}
+
+// NewGlobalStore creates a store instance for a file (global mode)
+func NewGlobalStore(filePath string) (*Store, error) {
+	return NewStoreWithOptions(filePath, StoreOptions{Global: true})
+}
+
+// NewStoreWithOptions creates a store instance with specified options
+func NewStoreWithOptions(filePath string, opts StoreOptions) (*Store, error) {
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return nil, err
@@ -44,7 +91,19 @@ func NewStore(filePath string) (*Store, error) {
 
 	baseDir := filepath.Dir(absPath)
 	fileName := filepath.Base(absPath)
-	gitDir := filepath.Join(baseDir, OopsDir, fileName+".git")
+
+	var gitDir string
+	if opts.Global {
+		globalDir, err := GetGlobalOopsDir()
+		if err != nil {
+			return nil, err
+		}
+		// Use hash of full path to create unique directory
+		pathHash := hashFilePath(absPath)
+		gitDir = filepath.Join(globalDir, pathHash, fileName+".git")
+	} else {
+		gitDir = filepath.Join(baseDir, OopsDir, fileName+".git")
+	}
 
 	s := &Store{
 		FilePath: absPath,
@@ -52,6 +111,7 @@ func NewStore(filePath string) (*Store, error) {
 		BaseDir:  baseDir,
 		GitDir:   gitDir,
 		Repo:     git.NewRepo(gitDir, baseDir, fileName),
+		Global:   opts.Global,
 	}
 
 	return s, nil
@@ -59,6 +119,11 @@ func NewStore(filePath string) (*Store, error) {
 
 // OopsDirPath returns the path to .oops directory
 func (s *Store) OopsDirPath() string {
+	if s.Global {
+		globalDir, _ := GetGlobalOopsDir()
+		pathHash := hashFilePath(s.FilePath)
+		return filepath.Join(globalDir, pathHash)
+	}
 	return filepath.Join(s.BaseDir, OopsDir)
 }
 
@@ -80,6 +145,11 @@ func (s *Store) Initialize() error {
 
 	// Create .oops directory
 	if err := os.MkdirAll(s.OopsDirPath(), 0755); err != nil {
+		return err
+	}
+
+	// Save metadata for global stores
+	if err := s.saveMetadata(); err != nil {
 		return err
 	}
 
@@ -248,12 +318,110 @@ func (s *Store) Now() (current int, latest int, hasChanges bool, err error) {
 
 // Delete removes the store (done/untrack)
 func (s *Store) Delete() error {
+	if s.Global {
+		// Remove the entire hash directory for global stores
+		return os.RemoveAll(s.OopsDirPath())
+	}
 	return os.RemoveAll(s.GitDir)
+}
+
+// saveMetadata saves file path metadata for global stores
+func (s *Store) saveMetadata() error {
+	if !s.Global {
+		return nil
+	}
+	metaFile := filepath.Join(s.OopsDirPath(), "metadata.txt")
+	return os.WriteFile(metaFile, []byte(s.FilePath), 0644)
+}
+
+// GlobalStoreInfo represents info about a globally tracked file
+type GlobalStoreInfo struct {
+	FilePath string
+	FileName string
+	HashDir  string
+}
+
+// ListGlobalStores returns all globally tracked files
+func ListGlobalStores() ([]GlobalStoreInfo, error) {
+	globalDir, err := GetGlobalOopsDir()
+	if err != nil {
+		return nil, err
+	}
+
+	entries, err := os.ReadDir(globalDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var stores []GlobalStoreInfo
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		hashDir := filepath.Join(globalDir, entry.Name())
+		metaFile := filepath.Join(hashDir, "metadata.txt")
+
+		data, err := os.ReadFile(metaFile)
+		if err != nil {
+			continue // Skip if no metadata
+		}
+
+		filePath := string(data)
+		stores = append(stores, GlobalStoreInfo{
+			FilePath: filePath,
+			FileName: filepath.Base(filePath),
+			HashDir:  entry.Name(),
+		})
+	}
+
+	return stores, nil
+}
+
+// FindGlobalStore finds an existing global store for a file path
+func FindGlobalStore(filePath string) (*Store, error) {
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := NewGlobalStore(absPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.Exists() {
+		return nil, ErrNotTracked
+	}
+
+	return s, nil
 }
 
 // GetLatestVersion returns the latest version number
 func (s *Store) GetLatestVersion() (int, error) {
 	return s.Repo.GetLatestTagNumber()
+}
+
+// CheckDuplicateTracking checks if file is tracked in both local and global
+// Returns (hasLocal, hasGlobal)
+func CheckDuplicateTracking(filePath string) (bool, bool) {
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		return false, false
+	}
+
+	// Check local
+	localStore, err := NewStore(absPath)
+	hasLocal := err == nil && localStore.Exists()
+
+	// Check global
+	globalStore, err := NewGlobalStore(absPath)
+	hasGlobal := err == nil && globalStore.Exists()
+
+	return hasLocal, hasGlobal
 }
 
 // ShouldCompress checks if the tracked file should be compressed

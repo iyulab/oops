@@ -23,7 +23,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	s, err := store.NewStore(filePath)
+	s, err := store.NewStoreWithOptions(filePath, store.StoreOptions{Global: globalFlag})
 	if err != nil {
 		fail("Error: %v", err)
 		return nil
@@ -35,15 +35,32 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// Check for duplicate tracking (file tracked in both local and global)
+	hasLocal, hasGlobal := store.CheckDuplicateTracking(filePath)
+	if globalFlag && hasLocal {
+		warn("This file is already tracked locally (.oops/)")
+		info("Consider using 'oops done' to stop local tracking first")
+	} else if !globalFlag && hasGlobal {
+		warn("This file is already tracked globally (~/.oops/)")
+		info("Consider using 'oops done -g' to stop global tracking first")
+	}
+
 	if err := s.Initialize(); err != nil {
 		fail("Failed to start tracking: %v", err)
 		return nil
 	}
 
-	// Add to .gitignore if present
-	utils.EnsureGitignore(s.BaseDir)
+	// Add to .gitignore if present (only for local mode)
+	if !globalFlag {
+		utils.EnsureGitignore(s.BaseDir)
+	}
 
-	success("Now watching '%s' (snapshot #1)", s.FileName)
+	if globalFlag {
+		success("Now watching '%s' globally (snapshot #1)", s.FileName)
+		info("Storage: %s", s.OopsDirPath())
+	} else {
+		success("Now watching '%s' (snapshot #1)", s.FileName)
+	}
 	info("Use 'oops save \"message\"' to save changes")
 	return nil
 }

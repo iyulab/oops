@@ -4,10 +4,15 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/iyulab/oops/internal/config"
 	"github.com/spf13/cobra"
 )
 
-var Version = "0.2.1"
+var Version = "0.3.0"
+
+// Global flags
+var globalFlag bool
+var localFlag bool // Explicit local flag to override config
 
 var rootCmd = &cobra.Command{
 	Use:     "oops",
@@ -26,6 +31,19 @@ Quick Start:
 
 For developers, Git-style aliases also work:
   track, commit, log, checkout, diff, status, untrack`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// Apply config defaults if no explicit flag set
+		if !globalFlag && !localFlag {
+			cfg, _ := config.Load()
+			if cfg != nil && cfg.DefaultGlobal {
+				globalFlag = true
+			}
+		}
+		// Explicit -l overrides config
+		if localFlag {
+			globalFlag = false
+		}
+	},
 }
 
 func Execute() {
@@ -36,6 +54,8 @@ func Execute() {
 
 func init() {
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
+	rootCmd.PersistentFlags().BoolVarP(&globalFlag, "global", "g", false, "Use global storage (~/.oops/) instead of local (.oops/)")
+	rootCmd.PersistentFlags().BoolVarP(&localFlag, "local", "l", false, "Use local storage (.oops/) - overrides config default")
 }
 
 // Helper for friendly output
