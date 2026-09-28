@@ -3,6 +3,7 @@ package diff
 
 import (
 	"bytes"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/pmezard/go-difflib/difflib"
@@ -36,8 +37,21 @@ func Unified(name string, old, new []byte) (string, bool) {
 		return "Binary files a/" + name + " and b/" + name + " differ\n", true
 	}
 	text, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-		A: difflib.SplitLines(string(old)), B: difflib.SplitLines(string(new)),
+		A: lines(old), B: lines(new),
 		FromFile: "a/" + name, ToFile: "b/" + name, Context: 3,
 	})
 	return text, false
+}
+
+// lines splits into lines that keep their terminator; unlike difflib.SplitLines
+// it adds no empty line after a final newline.
+func lines(b []byte) []string {
+	if len(b) == 0 {
+		return nil
+	}
+	out := strings.SplitAfter(string(b), "\n")
+	if out[len(out)-1] == "" {
+		out = out[:len(out)-1]
+	}
+	return out
 }

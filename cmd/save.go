@@ -1,7 +1,11 @@
 package cmd
 
 import (
+	"fmt"
+	"path/filepath"
+
 	"github.com/iyulab/oops/internal/store"
+	"github.com/iyulab/oops/internal/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -33,6 +37,11 @@ func (a *app) saveCmd() *cobra.Command {
 			r, err := s.Save(args[0], o)
 			if err != nil {
 				return err
+			}
+			if root, _ := a.explicitRoot(); root == "" && r.Saved && r.Version.N == 1 {
+				if err := utils.EnsureGitignore(filepath.Dir(r.Path)); err != nil {
+					fmt.Fprintf(a.stderr, "⚠ could not add .oops to .gitignore: %v\n", err)
+				}
 			}
 			a.emit(r, func() {
 				if !r.Saved {

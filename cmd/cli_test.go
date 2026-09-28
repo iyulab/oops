@@ -165,3 +165,16 @@ func TestUnits(t *testing.T) {
 		t.Fatal("bad meta accepted")
 	}
 }
+
+func TestLocalSaveAddsStoreToExistingGitignore(t *testing.T) {
+	_, f := setup(t)
+	gi := filepath.Join(filepath.Dir(f), ".gitignore")
+	os.WriteFile(gi, []byte("node_modules/\n"), 0o644)
+	t.Setenv("OOPS_STORE", "")
+	if r := run(t, "save", f); r.code != 0 {
+		t.Fatalf("save: %+v", r)
+	}
+	if b, _ := os.ReadFile(gi); !bytes.Contains(b, []byte(".oops")) {
+		t.Fatalf(".gitignore not updated: %q", b)
+	}
+}

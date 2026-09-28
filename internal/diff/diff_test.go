@@ -39,3 +39,10 @@ func TestLongUTF8TextIsNotBinary(t *testing.T) {
 		t.Fatal("long UTF-8 text cut mid-rune was taken for binary")
 	}
 }
+
+func TestUnifiedNoPhantomTrailingLine(t *testing.T) {
+	out, _ := Unified("n.md", []byte("a\n"), []byte("b\n"))
+	if !strings.Contains(out, "@@ -1 +1 @@") || strings.Contains(out, "\n \n") {
+		t.Fatalf("a one-line file must diff as one line:\n%q", out)
+	}
+}
