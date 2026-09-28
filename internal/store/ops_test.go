@@ -1,0 +1,137 @@
+package store
+
+import (
+	"os"
+	"path/filepath"
+	"sync"
+	"testing"
+)
+
+func TestRestoreKeepsUnsavedWorkAsAutoVersion(t *testing.T) {
+	s, dir := newTestStore(t)
+	f := filepath.Join(dir, "a.txt")
+	write(t, f, "v1")
+	s.Save(f, SaveOptions{})
+	write(t, f, "v2")
+	s.Save(f, SaveOptions{})
+	write(t, f, "unsaved")
+	r, err := s.Restore(f, 1, SaveOptions{Actor: "tester"})
+	if err != nil || r.Restored != 1 || r.SavedBefore == nil || r.SavedBefore.Kind != KindAuto || r.SavedBefore.Actor != "tester" {
+		t.Fatalf("restore: %+v %v", r, err)
+	}
+	if b, _ := os.ReadFile(f); string(b) != "v1" {
+		t.Fatalf("file after restore: %q", b)
+	}
+	if b, _ := s.Content(f, r.SavedBefore.N); string(b) != "unsaved" {
+		t.Fatalf("unsaved work lost: %q", b)
+	}
+	r, _ = s.Restore(f, 2, SaveOptions{})
+	if r.SavedBefore != nil { // "v1" is already a version — nothing new to keep
+		t.Fatalf("no safety version expected: %+v", r)
+	}
+}
+
+func TestRestoreRecreatesDeletedFile(t *testing.T) {
+	s, dir := newTestStore(t)
+	f := filepath.Join(dir, "sub", "a.txt")
+	write(t, f, "v1")
+	s.Save(f, SaveOptions{})
+	os.RemoveAll(filepath.Join(dir, "sub"))
+	if _, err := s.Restore(f, 1, SaveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(f); string(b) != "v1" {
+		t.Fatalf("recreated: %q", b)
+	}
+}
+
+func TestRestoreUnknownVersion(t *testing.T) {
+	s, dir := newTestStore(t)
+	f := filepath.Join(dir, "a.txt")
+	write(t, f, "v1")
+	s.Save(f, SaveOptions{})
+	if _, err := s.Restore(f, 7, SaveOptions{}); CodeOf(err) != CodeVersionNotFound {
+		t.Fatalf("want version_not_found, got %v", err)
+	}
+}
+
+func TestMoveCarriesHistory(t *testing.T) {
+	s, dir := newTestStore(t)
+	a, b := filepath.Join(dir, "a.txt"), filepath.Join(dir, "b.txt")
+	write(t, a, "v1")
+	s.Save(a, SaveOptions{})
+	r, err := s.Move(a, b)
+	if err != nil || !r.MovedFile {
+		t.Fatalf("move: %+v %v", r, err)
+	}
+	if _, err := s.History(a); CodeOf(err) != CodeNotTracked {
+		t.Fatal("old path still tracked")
+	}
+	ix, err := s.History(b)
+	if err != nil || len(ix.Versions) != 1 || ix.Path != b {
+		t.Fatalf("new path: %+v %v", ix, err)
+	}
+	// history-only move: the file was already moved by someone else
+	c := filepath.Join(dir, "c.txt")
+	os.Rename(b, c)
+	r, err = s.Move(b, c)
+	if err != nil || r.MovedFile {
+		t.Fatalf("history-only move: %+v %v", r, err)
+	}
+	write(t, a, "x")
+	s.Save(a, SaveOptions{})
+	if _, err := s.Move(a, c); CodeOf(err) != CodeAlreadyTracked {
+		t.Fatalf("want already_tracked, got %v", err)
+	}
+}
+
+func TestRemoveFilesOrphans(t *testing.T) {
+	s, dir := newTestStore(t)
+	a, b := filepath.Join(dir, "a.txt"), filepath.Join(dir, "b.txt")
+	write(t, a, "1")
+	write(t, b, "2")
+	s.Save(a, SaveOptions{})
+	s.Save(b, SaveOptions{})
+	os.Remove(b)
+	orph, _ := s.Orphans()
+	if len(orph) != 1 || orph[0].Path != b {
+		t.Fatalf("orphans: %+v", orph)
+	}
+	if err := s.Remove(a); err != nil {
+		t.Fatal(err)
+	}
+	files, _ := s.Files()
+	if len(files) != 1 {
+		t.Fatalf("files after remove: %d", len(files))
+	}
+	if err := s.Remove(a); CodeOf(err) != CodeNotTracked {
+		t.Fatalf("second remove: %v", err)
+	}
+}
+
+func TestConcurrentSaves(t *testing.T) {
+	s, dir := newTestStore(t)
+	f := filepath.Join(dir, "shared.txt")
+	write(t, f, "seed")
+	var wg sync.WaitGroup
+	errs := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			other := Open(s.Root) // separate Store value = separate lock handle, real clock
+			if _, err := other.Save(f, SaveOptions{}); err != nil {
+				errs <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatalf("concurrent save: %v", err)
+	}
+	ix, err := s.History(f)
+	if err != nil || len(ix.Versions) != 1 || ix.Next != 2 {
+		t.Fatalf("8 concurrent saves of one content must yield exactly one version: %+v %v", ix, err)
+	}
+}
