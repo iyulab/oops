@@ -1,6 +1,6 @@
 .PHONY: build test clean release
 
-VERSION ?= 0.1.0
+VERSION ?= 0.4.0
 BINARY_NAME = oops
 BUILD_DIR = build
 

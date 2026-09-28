@@ -15,155 +15,146 @@ Or download from [GitHub Releases](https://github.com/iyulab/oops/releases).
 ## Quick Start
 
 ```bash
-oops start essay.txt          # 👀 Start versioning
+oops save essay.txt "first draft"      # 📸 Save a version (starts versioning the file)
 # ... write something ...
-oops save "first draft"       # 📸 Save a snapshot
-# ... edit more ...
-oops save "added conclusion"  # 📸 Save another
-oops history                  # 📜 View all snapshots
-oops oops!                    # ↩️  Made a mistake? Go back!
+oops save essay.txt "added conclusion" # 📸 Save another
+oops history essay.txt                 # 📜 View all versions
+oops changes essay.txt                 # 🔍 What changed since the last save?
+oops back essay.txt 1                  # ⏪ Go back to version #1
+oops oops! essay.txt                   # ↩️  Made a mistake? Back to the last save
 ```
+
+Going back never loses work: if the file has changes that were not saved, oops keeps them as an
+automatic version first, so you can return to them too.
 
 ## Commands
 
-| Command | Git-style | Description |
-|---------|-----------|-------------|
-| `oops start <file>` | `track` | 👀 Start versioning a file |
-| `oops save [message]` | `commit` | 📸 Save a snapshot |
-| `oops back <N>` | `checkout` | ⏪ Go back to snapshot #N |
-| `oops oops!` | - | ↩️ Undo (restore last saved state) |
-| `oops history` | `log` | 📜 View all snapshots |
-| `oops changes` | `diff` | 🔍 See what changed |
-| `oops now` | `status` | ℹ️ Show current status |
-| `oops files` | `ls` | 📁 List tracked files |
-| `oops done` | `untrack` | 🗑️ Stop versioning |
-| `oops config` | - | ⚙️ Manage configuration |
-| `oops gc` | - | 🧹 Clean up orphaned stores |
+| Command | Also | Description |
+|---------|------|-------------|
+| `oops save <file> [message]` | `start`, `track`, `commit`, `snap` | 📸 Save a version (the first save starts versioning) |
+| `oops history <file>` | `log`, `list` | 📜 List versions |
+| `oops changes <file> [from] [to]` | `diff` | 🔍 Compare the file with the latest version, with `#from`, or `#from` with `#to` |
+| `oops back <file> <version>` | `checkout`, `restore` | ⏪ Go back to a version |
+| `oops oops! <file>` | `undo` | ↩️ Go back to the latest version |
+| `oops cat <file> <version>` | | 📄 Print a version (`--out <path>` writes it to a file) |
+| `oops now <file>` | `status` | ℹ️ Does the file match a saved version? |
+| `oops files` | `ls` | 📁 List versioned files |
+| `oops mv <from> <to>` | | 🚚 Move a file and keep its versions |
+| `oops done <file>` | `untrack` | 🗑️ Stop versioning a file and delete its versions |
+| `oops prune` | | 🧹 Remove old automatic versions |
+| `oops gc` | | 🧹 Remove the versions of files that no longer exist |
+| `oops config` | | ⚙️ Default storage mode |
+| `oops update` | | 🔄 Update oops |
 
-### Flags
+## Saved and Automatic Versions
 
-| Flag | Description |
-|------|-------------|
-| `-g, --global` | Use global storage (`~/.oops/`) |
-| `-l, --local` | Use local storage (`.oops/`) - overrides config |
-| `-a, --all` | Show both local and global (for `files` command) |
-
-## Examples
-
-### Basic Workflow
+A version is either **saved** (`manual`, the default) or **automatic** (`auto`):
 
 ```bash
-oops start notes.md           # Snapshot #1 created
-# ... write ...
-oops save "brain dump"        # Snapshot #2
-# ... edit ...
-oops save "organized thoughts"  # Snapshot #3
+oops save notes.md "before the big edit"   # saved - kept until you delete it
+oops save notes.md --auto                  # automatic - may be removed by prune
 ```
 
-### Oops! Moments
+Versions made by `back` to keep unsaved changes are automatic. `prune` only ever removes automatic
+versions.
+
+## Keeping the Store Small
 
 ```bash
-# Accidentally deleted important text?
-oops oops!                    # Restores to last saved state
-
-# Want to see an older version?
-oops back 1                   # Go to snapshot #1
-oops back 3                   # Jump back to snapshot #3
+oops prune --max-age 30d                  # automatic versions older than 30 days
+oops prune --max-size 500MB               # keep the store under 500 MB
+oops prune --max-age 30d --dry-run        # see what would go
+oops gc                                   # versions of files that were deleted
 ```
 
-### See What Changed
+With `--max-size`, oops removes the oldest automatic version of the file that has the most versions
+first, and keeps each file's newest version until nothing else is left to remove. `prune` without
+options removes nothing.
+
+## Where Versions Live
+
+| Mode | Location |
+|------|----------|
+| Local (default) | `.oops/` beside the file - added to an existing `.gitignore` |
+| Global (`-g`) | `~/.oops/` |
+| Any directory | `--store <dir>` or the `OOPS_STORE` environment variable |
+
+`oops config --default-global` makes global the default; `-l` overrides it.
+
+A store holds any number of files:
+
+```
+<store>/
+└── files/
+    └── <key>/            ← one directory per file (key = hash of its path)
+        ├── index.json    ← versions: number, time, kind, label, actor, metadata
+        └── blobs/        ← content, one file per distinct version (gzip when useful)
+```
+
+## For Scripts and Applications
+
+Every command accepts `--json` and then prints exactly one JSON object on stdout, success or error.
 
 ```bash
-oops changes                  # Unsaved changes vs last snapshot
-oops changes 1                # Current vs snapshot #1
-oops changes 1 3              # Compare snapshot #1 and #3
+oops --json save report.md "draft" --actor sync --meta batch=42
+```
+```json
+{ "saved": true, "path": "/work/report.md",
+  "version": { "n": 3, "hash": "…", "size": 1204, "time": "2026-01-01T09:00:00Z",
+               "kind": "manual", "actor": "sync", "label": "draft", "meta": { "batch": "42" } } }
 ```
 
-### Check Status
+Saving content equal to the latest version succeeds without a new version:
+`{"saved": false, "reason": "unchanged", …}`.
 
-```bash
-oops now
-# 📄 File:     notes.md
-# 📍 Snapshot: #3 (latest)
-# ✏️  Status:   Modified
-#
-#   You have unsaved changes
-#     oops save    Save your changes
-#     oops oops!   Undo changes
-```
+| Command | JSON |
+|---------|------|
+| `save` | `{saved, reason?, path, version}` |
+| `history` | `{path, versions: [version…]}` — filter with `--kind manual\|auto` and `--where key=value` |
+| `now` | `{path, exists, latest, current, changed}` — `current` is 0 when no version matches |
+| `back`, `oops!` | `{path, restored, savedBefore: version\|null}` |
+| `changes` | `{path, from, to\|null, binary, diff}` |
+| `prune` | `{dryRun, removed: [{path, n, reason}], freedBytes, totalBytes, overCapBytes}` |
+| `gc` | `{orphans, removed, dryRun}` |
+| error | `{"error": {"code": "<code>", "message": "<text>"}}` |
 
-## How It Works
+**Exit codes**
 
-Oops uses an embedded Git library (go-git) - no external Git installation needed.
+| Code | Meaning | `error.code` |
+|------|---------|--------------|
+| 0 | success (including "unchanged") | |
+| 1 | other failure | `error` |
+| 2 | wrong arguments or flags | `usage` |
+| 3 | the file is not versioned | `not_tracked` |
+| 4 | no such version | `version_not_found` |
+| 5 | another oops process kept the lock | `lock_timeout` |
+| 6 | the file does not exist | `file_not_found` |
+| 7 | the target already has versions (`mv`) | `already_tracked` |
 
-### Local Storage (Default)
+- `--actor <text>` and `--meta key=value` (repeatable) are stored on the version as given.
+- With `--json`, oops never asks a question: `done` and `gc` need `--yes`.
+- Several oops processes may work on one store at once; each waits up to `--lock-timeout` (10s).
+- An application that ships oops can set `OOPS_NO_UPDATE=1` so `oops update` refuses to replace it.
 
-```
-project/
-├── notes.md
-└── .oops/
-    └── notes.md.git/    ← Version storage (hidden)
-```
+## Upgrading from 0.3
 
-### Global Storage (`-g` flag)
-
-Keep your project directory clean by storing versions in your home directory:
-
-```bash
-oops start -g notes.md    # Store in ~/.oops/
-oops files -g             # List global tracked files
-oops gc -g                # Clean orphaned global stores
-```
-
-```
-~/.oops/
-└── a1b2c3d4.../          ← Hash-based directory
-    ├── metadata.txt      ← Original file path
-    └── notes.md.git/     ← Version storage
-```
-
-### Configuration
-
-Set global as default mode:
-
-```bash
-oops config --default-global   # Always use global storage
-oops config --default-local    # Use local storage (default)
-oops config                    # Show current settings
-```
-
-### Features
-
-- Each snapshot = commit + tag (v1, v2, v3...)
-- Delta compression for storage efficiency
-- Works completely offline, no server needed
-- `.oops/` automatically added to `.gitignore`
-- Cross-platform path handling (Windows/Unix)
+0.4 uses a new store format and does not read 0.3 stores (`.oops/<name>.git`). Restore anything you
+need with oops 0.3 first. Commands now take the file: `oops save notes.md "message"` instead of
+`oops save "message"`, and one folder can hold any number of versioned files.
 
 ## Use Cases
 
-**Perfect for:**
 - 📝 Writers - essays, articles, manuscripts
 - 📊 Researchers - notes, data files
 - ⚙️ Config files - when you need quick rollback
-- 📋 Any single file you edit frequently
+- 🤖 Tools that change files for you - save an automatic version first, go back if the change was wrong
 
-**For multi-file projects:** Use Git directly
-
-## Comparison
-
-| Feature | Oops | Git |
-|---------|------|-----|
-| Learning curve | 5 minutes | Hours |
-| Commands to learn | ~5 | ~20+ |
-| Single file focus | ✓ | Multi-file |
-| Server required | No | Optional |
-| Storage efficiency | Git-level | Git |
-| Undo mistakes | `oops oops!` | `git checkout HEAD -- file` |
+**For software projects:** use Git.
 
 ## Why "Oops"?
 
-Because everyone makes mistakes when editing files. With Oops, you can simply say "oops!" and go back to a safe state. No complex commands, no fear of losing work.
+Because everyone makes mistakes when editing files. With Oops, you can simply say "oops!" and go back
+to a safe state. No complex commands, no fear of losing work.
 
 ## License
 
