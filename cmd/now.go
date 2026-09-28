@@ -1,68 +1,33 @@
 package cmd
 
-import (
-	"fmt"
+import "github.com/spf13/cobra"
 
-	"github.com/iyulab/oops/internal/store"
-	"github.com/spf13/cobra"
-)
-
-var nowCmd = &cobra.Command{
-	Use:     "now",
-	Aliases: []string{"status", "info"},
-	Short:   "ℹ️ Show current status",
-	Long:    `Display the current tracking status including version and changes.`,
-	Args:    cobra.NoArgs,
-	RunE:    runNow,
-}
-
-func runNow(cmd *cobra.Command, args []string) error {
-	s, err := findTrackedStore()
-	if err != nil {
-		fail("%v", err)
-		return nil
+func (a *app) nowCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:     "now <file>",
+		Aliases: []string{"status"},
+		Short:   "ℹ️  Show whether the file matches a saved version",
+		Args:    usageArgs(cobra.ExactArgs(1)),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			s, err := a.storeFor(args[0])
+			if err != nil {
+				return err
+			}
+			st, err := s.Status(args[0])
+			if err != nil {
+				return err
+			}
+			a.emit(st, func() {
+				switch {
+				case !st.Exists:
+					a.say("⚠ %s is missing — 'oops back' can bring it back (latest #%d)", st.Path, st.Latest)
+				case st.Changed:
+					a.say("✏️  %s has unsaved changes (latest #%d)", st.Path, st.Latest)
+				default:
+					a.say("✓ %s is at #%d (latest #%d)", st.Path, st.Current, st.Latest)
+				}
+			})
+			return nil
+		},
 	}
-
-	current, latest, hasChanges, err := s.Now()
-	if err != nil {
-		fail("Failed to get status: %v", err)
-		return nil
-	}
-
-	fmt.Printf("📄 File:     %s\n", s.FileName)
-
-	if s.Global {
-		fmt.Printf("🌐 Mode:     Global (%s)\n", s.OopsDirPath())
-	}
-
-	if current == latest {
-		fmt.Printf("📍 Snapshot: #%d (latest)\n", current)
-	} else {
-		fmt.Printf("📍 Snapshot: #%d (latest is #%d)\n", current, latest)
-	}
-
-	if hasChanges {
-		fmt.Printf("✏️  Status:   Modified\n")
-		fmt.Println()
-		info("You have unsaved changes")
-		info("  oops save    Save your changes")
-		info("  oops oops!   Undo changes")
-	} else {
-		fmt.Printf("✓  Status:   Clean\n")
-	}
-
-	// Check for duplicate tracking
-	hasLocal, hasGlobal := store.CheckDuplicateTracking(s.FilePath)
-	if hasLocal && hasGlobal {
-		fmt.Println()
-		warn("This file is tracked in both local and global storage!")
-		info("  oops done      Stop local tracking")
-		info("  oops done -g   Stop global tracking")
-	}
-
-	return nil
-}
-
-func init() {
-	rootCmd.AddCommand(nowCmd)
 }

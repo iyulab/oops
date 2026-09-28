@@ -1,7 +1,11 @@
 package main
 
-import "github.com/iyulab/oops/cmd"
+import (
+	"os"
+
+	"github.com/iyulab/oops/cmd"
+)
 
 func main() {
-	cmd.Execute()
+	os.Exit(cmd.Run(os.Args[1:], os.Stdout, os.Stderr))
 }
