@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/iyulab/oops/internal/updater"
 	"github.com/spf13/cobra"
@@ -19,6 +20,9 @@ Examples:
   oops update --check  Only check if an update is available`,
 		Args: usageArgs(cobra.NoArgs),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if os.Getenv("OOPS_NO_UPDATE") != "" {
+				return fmt.Errorf("updates are managed by the application that installed oops")
+			}
 			release, hasUpdate, err := updater.CheckForUpdate(Version)
 			if err != nil {
 				return fmt.Errorf("failed to check for updates: %w", err)

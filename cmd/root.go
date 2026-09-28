@@ -125,7 +125,9 @@ Oops! Made a mistake? No worries - you can always go back!
 	pf.BoolVar(&a.json, "json", false, "Print one JSON object (for scripts and applications)")
 	pf.DurationVar(&a.lockTimeout, "lock-timeout", 10*time.Second, "How long to wait for another oops process")
 
-	root.AddCommand(a.saveCmd(), a.historyCmd(), a.catCmd(), a.nowCmd(), a.filesCmd(), a.updateCmd(), a.configCmd())
+	root.AddCommand(a.saveCmd(), a.historyCmd(), a.catCmd(), a.nowCmd(), a.filesCmd(),
+		a.backCmd(), a.undoCmd(), a.doneCmd(), a.mvCmd(), a.changesCmd(), a.pruneCmd(), a.gcCmd(),
+		a.updateCmd(), a.configCmd())
 	return root
 }
 
