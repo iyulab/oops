@@ -28,7 +28,8 @@
 - `files` and `prune` report a history whose index cannot be read, instead of skipping it silently.
 - `prune` reports only the removals it applied; a prune stopped by a lock timeout no longer overstates them.
 - Size pruning no longer removes an automatic version whose content a saved version also keeps (it freed nothing).
-- Removing a history deletes its index before its content, so another process never reads an index whose content is gone.
+- Removing a history (`done`, `gc`, a prune that empties a file) happens entirely under the file's lock, index first: another process never reads an index whose content is gone, and a save that starts right after is never deleted.
+- `mv` keeps both histories locked for the whole move and never renames a history directory, so a save during a move cannot land in the old location; a failed move leaves the old history complete.
 - The index is flushed to disk before it replaces the old one.
 - On Windows, `mv r.txt R.txt` renames the file and keeps its versions (both names share one history).
 - `--version --json` prints `{"version": …}`.

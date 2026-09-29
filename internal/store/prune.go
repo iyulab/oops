@@ -1,7 +1,6 @@
 package store
 
 import (
-	"os"
 	"sort"
 	"time"
 )
@@ -208,8 +207,8 @@ func (s *Store) applyPrune(pf *pruneFile) error {
 	}
 	fresh.Versions = kept
 	if len(kept) == 0 {
-		unlock()
-		return os.RemoveAll(pf.dir)
+		defer unlock()
+		return s.clearHistoryLocked(pf.dir)
 	}
 	if err := s.saveIx(fresh, pf.dir); err != nil {
 		unlock()

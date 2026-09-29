@@ -18,7 +18,7 @@ type Store struct {
 	now         func() time.Time
 
 	// test seams
-	beforeRemoveAll func(dir string)
+	beforeRemoveContent func(dir string)
 	beforeApply     func(dir string) error
 }
 

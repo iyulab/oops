@@ -68,7 +68,7 @@ func TestRemoveHistoryDeletesIndexFirst(t *testing.T) {
 	abs, _ := filepath.Abs(f)
 	d := s.fileDir(abs)
 	var order []string
-	s.beforeRemoveAll = func(dir string) {
+	s.beforeRemoveContent = func(dir string) {
 		if _, err := os.Stat(filepath.Join(dir, "index.json")); err == nil {
 			order = append(order, "index-still-there")
 		}
@@ -80,8 +80,15 @@ func TestRemoveHistoryDeletesIndexFirst(t *testing.T) {
 	if len(order) != 0 {
 		t.Fatalf("index.json was still present when the blobs were removed")
 	}
-	if _, err := os.Stat(d); !os.IsNotExist(err) {
-		t.Fatalf("history dir left behind: %v", err)
+	entries, _ := os.ReadDir(d)
+	for _, e := range entries {
+		if e.Name() != ".lock" {
+			t.Fatalf("history content left behind: %s", e.Name())
+		}
+	}
+	// the directory is reused: a later save starts a fresh history there
+	if r, err := s.Save(f, SaveOptions{}); err != nil || !r.Saved || r.Version.N != 1 {
+		t.Fatalf("save after remove: %+v %v", r, err)
 	}
 }
 
@@ -178,5 +185,53 @@ func TestMoveCaseOnlyRename(t *testing.T) {
 	ix, err := s.History(to)
 	if err != nil || filepath.Base(ix.Path) != "R.txt" || len(ix.Versions) != 1 {
 		t.Fatalf("history after case rename: %+v %v", ix, err)
+	}
+}
+
+// A removed history leaves only its lock file; moving another file onto that path is not blocked by it.
+func TestMoveOntoARemovedHistory(t *testing.T) {
+	s, dir := newTestStore(t)
+	old, other := filepath.Join(dir, "old.txt"), filepath.Join(dir, "other.txt")
+	write(t, old, "one")
+	s.Save(old, SaveOptions{})
+	if err := s.Remove(old); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(old)
+	write(t, other, "two")
+	s.Save(other, SaveOptions{})
+	if _, err := s.Move(other, old); err != nil {
+		t.Fatalf("move onto a removed history: %v", err)
+	}
+	if ix, err := s.History(old); err != nil || len(ix.Versions) != 1 {
+		t.Fatalf("history after move: %+v %v", ix, err)
+	}
+}
+
+// A move whose file cannot follow leaves the old history complete and nothing at the new path.
+func TestFailedMoveKeepsTheOldHistory(t *testing.T) {
+	s, dir := newTestStore(t)
+	f := filepath.Join(dir, "a.txt")
+	write(t, f, "one")
+	s.Save(f, SaveOptions{})
+	write(t, f, "two")
+	s.Save(f, SaveOptions{})
+	blocker := filepath.Join(dir, "blocker")
+	write(t, blocker, "a file, so no directory can be made here")
+	to := filepath.Join(blocker, "a.txt")
+	if _, err := s.Move(f, to); err == nil {
+		t.Fatal("move under a file must fail")
+	}
+	ix, err := s.History(f)
+	if err != nil || len(ix.Versions) != 2 {
+		t.Fatalf("old history after a failed move: %+v %v", ix, err)
+	}
+	for _, v := range ix.Versions {
+		if _, err := s.Content(f, v.N); err != nil {
+			t.Fatalf("version %d unreadable after a failed move: %v", v.N, err)
+		}
+	}
+	if _, err := s.History(to); CodeOf(err) != CodeNotTracked {
+		t.Fatalf("new path must not be tracked: %v", err)
 	}
 }

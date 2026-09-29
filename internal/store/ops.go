@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // RestoreResult reports a restore. SavedBefore is the version that kept the
@@ -126,16 +127,35 @@ func (s *Store) RemoveHistory(ix *Index) error {
 	if err != nil {
 		return err
 	}
-	// the index goes first, under the lock: a reader then sees "not tracked", never an index whose blobs are gone
-	err = os.Remove(filepath.Join(dir, "index.json"))
-	unlock() // released before deletion: Windows cannot remove a locked file
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	defer unlock()
+	return s.clearHistoryLocked(dir)
+}
+
+// clearHistoryLocked empties a history directory; the caller holds its lock. The index goes first, so a reader sees
+// "not tracked", never an index whose content is gone. Everything is removed under the lock except the lock file
+// itself: deleting the lock file would let a process still waiting on it and a newcomer hold the lock at once (on
+// Unix the waiter locks the unlinked file), and removing the directory after unlocking would delete a history a
+// concurrent save had just started there. The directory with only its lock file is reused by the next save.
+func (s *Store) clearHistoryLocked(dir string) error {
+	if err := os.Remove(filepath.Join(dir, "index.json")); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	if s.beforeRemoveAll != nil {
-		s.beforeRemoveAll(dir)
+	if s.beforeRemoveContent != nil {
+		s.beforeRemoveContent(dir)
 	}
-	return os.RemoveAll(dir)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.Name() == ".lock" {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(dir, e.Name())); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // MoveResult reports a move. MovedFile is false when only the history moved.
@@ -145,9 +165,11 @@ type MoveResult struct {
 	MovedFile bool   `json:"movedFile"`
 }
 
-// Move carries a file's history to a new path, moving the file too when it is
-// still at the old path. The history moves first and is moved back if the file
-// cannot follow, so a failure never leaves the two apart.
+// Move carries a file's history to a new path, moving the file too when it is still at the old path.
+// Both histories are locked for the whole move and the history is carried file by file (content is linked,
+// or copied where a link is not possible), never by renaming its directory — so no lock is released early, and at
+// every point one complete index describes the file: the new one is written before the old one is cleared, and
+// a failure clears the new one and leaves the old history as it was.
 func (s *Store) Move(from, to string) (MoveResult, error) {
 	fa, err := absPath(from)
 	if err != nil {
@@ -165,8 +187,8 @@ func (s *Store) Move(from, to string) (MoveResult, error) {
 	if src == dst {
 		return s.renameInPlace(ix, src, fa, ta)
 	}
-	if _, err := os.Stat(dst); err == nil {
-		return MoveResult{}, errf(CodeAlreadyTracked, "%s already has a history", ta)
+	if err := s.checkNoHistory(dst, ta); err != nil {
+		return MoveResult{}, err
 	}
 	res := MoveResult{From: fa, To: ta}
 	if _, err := os.Stat(fa); err == nil {
@@ -175,40 +197,109 @@ func (s *Store) Move(from, to string) (MoveResult, error) {
 		}
 		res.MovedFile = true
 	}
-	unlock, err := lockFile(src, s.LockTimeout)
+	// lock in a fixed order so two opposite moves cannot deadlock
+	first, second := src, dst
+	if second < first {
+		first, second = second, first
+	}
+	unlock1, err := lockFile(first, s.LockTimeout)
 	if err != nil {
 		return MoveResult{}, err
 	}
-	ix.Path = ta
-	err = s.saveIx(ix, src)
-	unlock() // released before the rename: Windows cannot rename a directory with an open file
-	if err == nil {
-		err = os.Rename(src, dst)
-	}
+	defer unlock1()
+	unlock2, err := lockFile(second, s.LockTimeout)
 	if err != nil {
-		ix.Path = fa
-		s.saveIx(ix, src)
 		return MoveResult{}, err
+	}
+	defer unlock2()
+
+	if err := s.checkNoHistory(dst, ta); err != nil { // again, under the lock
+		return MoveResult{}, err
+	}
+	if ix, err = s.loadIx(src); err != nil || ix == nil || len(ix.Versions) == 0 { // re-read under the lock
+		if err == nil {
+			err = errf(CodeNotTracked, "not versioned yet: %s", fa)
+		}
+		return MoveResult{}, err
+	}
+	fail := func(err error) (MoveResult, error) {
+		s.clearHistoryLocked(dst)
+		return MoveResult{}, err
+	}
+	if err := carryBlobs(src, dst); err != nil {
+		return fail(err)
+	}
+	moved := *ix
+	moved.Path = ta
+	if err := s.saveIx(&moved, dst); err != nil {
+		return fail(err)
 	}
 	if res.MovedFile {
-		if err := os.MkdirAll(filepath.Dir(ta), 0o755); err == nil {
-			err = os.Rename(fa, ta)
+		if err := os.MkdirAll(filepath.Dir(ta), 0o755); err != nil {
+			return fail(err)
 		}
-		if err != nil {
-			if rerr := os.Rename(dst, src); rerr == nil {
-				ix.Path = fa
-				s.saveIx(ix, src)
-			}
-			return MoveResult{}, err
+		if err := os.Rename(fa, ta); err != nil {
+			return fail(err)
 		}
+	}
+	if err := s.clearHistoryLocked(src); err != nil {
+		return res, err
 	}
 	return res, nil
 }
 
-// Unreadable names a history whose index could not be read.
-type Unreadable struct {
-	Dir   string `json:"dir"`
-	Error string `json:"error"`
+// checkNoHistory fails when dir holds versions. A directory left with only its lock file holds none.
+func (s *Store) checkNoHistory(dir, abs string) error {
+	existing, err := s.loadIx(dir)
+	if err != nil {
+		return err
+	}
+	if existing != nil && len(existing.Versions) > 0 {
+		return errf(CodeAlreadyTracked, "%s already has a history", abs)
+	}
+	return nil
+}
+
+// carryBlobs puts every content file of src into dst: a hard link where the filesystem allows one, a copy otherwise.
+func carryBlobs(src, dst string) error {
+	entries, err := os.ReadDir(filepath.Join(src, "blobs"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Join(dst, "blobs"), 0o755); err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() || strings.HasSuffix(e.Name(), ".tmp") {
+			continue
+		}
+		from, to := filepath.Join(src, "blobs", e.Name()), filepath.Join(dst, "blobs", e.Name())
+		if _, err := os.Stat(to); err == nil {
+			continue // same content already there
+		}
+		if err := os.Link(from, to); err == nil {
+			continue
+		}
+		if err := copyFile(from, to); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyFile(from, to string) error {
+	b, err := os.ReadFile(from)
+	if err != nil {
+		return err
+	}
+	tmp := to + ".tmp"
+	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, to)
 }
 
 // renameInPlace handles a move whose two paths share one history key (a case-only rename on Windows):
@@ -237,6 +328,12 @@ func (s *Store) renameInPlace(ix *Index, dir, fa, ta string) (MoveResult, error)
 		}
 	}
 	return res, nil
+}
+
+// Unreadable names a history whose index could not be read.
+type Unreadable struct {
+	Dir   string `json:"dir"`
+	Error string `json:"error"`
 }
 
 // Files lists every history in the store, and separately the ones whose index cannot be read.
