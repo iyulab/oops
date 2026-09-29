@@ -23,6 +23,15 @@
 - Failures exited with code 0.
 - Two versioned files in one folder made `save`, `back`, `history` and `now` unusable.
 - Long UTF-8 text is no longer shown as binary in `changes`.
+- Text in a legacy encoding (CP949, Shift-JIS, Latin-1) is no longer shown as binary: like git, only a NUL byte makes a file binary.
+- A version list left empty (an interrupted write, a hand edit) reads as "not versioned yet" instead of crashing `back` and `changes`.
+- `files` and `prune` report a history whose index cannot be read, instead of skipping it silently.
+- `prune` reports only the removals it applied; a prune stopped by a lock timeout no longer overstates them.
+- Size pruning no longer removes an automatic version whose content a saved version also keeps (it freed nothing).
+- Removing a history deletes its index before its content, so another process never reads an index whose content is gone.
+- The index is flushed to disk before it replaces the old one.
+- On Windows, `mv r.txt R.txt` renames the file and keeps its versions (both names share one history).
+- `--version --json` prints `{"version": …}`.
 
 ### Removed
 - The go-git dependency (the Windows binary is about 30% smaller).

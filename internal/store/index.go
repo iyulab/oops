@@ -63,7 +63,18 @@ func (ix *Index) save(dir string) error {
 		return err
 	}
 	tmp := filepath.Join(dir, "index.json.tmp")
-	if err := os.WriteFile(tmp, b, 0o644); err != nil {
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(b)
+	if err == nil {
+		err = f.Sync() // the rename must not land before the bytes do
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
 		return err
 	}
 	return os.Rename(tmp, filepath.Join(dir, "index.json"))

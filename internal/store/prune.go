@@ -27,6 +27,7 @@ type PruneReport struct {
 	FreedBytes   int64            `json:"freedBytes"`
 	TotalBytes   int64            `json:"totalBytes"`
 	OverCapBytes int64            `json:"overCapBytes"`
+	Unreadable   []Unreadable     `json:"unreadable"`
 }
 
 type pruneFile struct {
@@ -35,6 +36,9 @@ type pruneFile struct {
 	keep  map[int]bool     // version N -> still kept
 	refs  map[string]int   // blob hash -> kept versions referencing it
 	sizes map[string]int64 // blob hash -> bytes on disk
+
+	removed []RemovedVersion // planned removals, reported once applied
+	freed   int64
 }
 
 func (pf *pruneFile) remaining() []Version {
@@ -59,12 +63,14 @@ func (pf *pruneFile) drop(v Version) int64 {
 
 // Prune applies the retention policy to the whole store. Only auto versions are removed.
 func (s *Store) Prune(p PrunePolicy) (PruneReport, error) {
-	rep := PruneReport{DryRun: p.DryRun, Removed: []RemovedVersion{}}
-	indexes, err := s.Files()
+	rep := PruneReport{DryRun: p.DryRun, Removed: []RemovedVersion{}, Unreadable: []Unreadable{}}
+	indexes, unreadable, err := s.Files()
 	if err != nil {
 		return rep, err
 	}
+	rep.Unreadable = append(rep.Unreadable, unreadable...)
 	var files []*pruneFile
+	var total int64 // bytes the plan leaves in the store
 	for _, ix := range indexes {
 		pf := &pruneFile{ix: ix, dir: s.fileDir(ix.Path), keep: map[int]bool{}, refs: map[string]int{}, sizes: map[string]int64{}}
 		for _, v := range ix.Versions {
@@ -72,7 +78,7 @@ func (s *Store) Prune(p PrunePolicy) (PruneReport, error) {
 			pf.refs[v.Hash]++
 			if _, ok := pf.sizes[v.Hash]; !ok {
 				pf.sizes[v.Hash] = blobDiskSize(pf.dir, v.Hash)
-				rep.TotalBytes += pf.sizes[v.Hash]
+				total += pf.sizes[v.Hash]
 			}
 		}
 		files = append(files, pf)
@@ -80,9 +86,9 @@ func (s *Store) Prune(p PrunePolicy) (PruneReport, error) {
 
 	remove := func(pf *pruneFile, v Version, reason string) {
 		freed := pf.drop(v)
-		rep.FreedBytes += freed
-		rep.TotalBytes -= freed
-		rep.Removed = append(rep.Removed, RemovedVersion{Path: pf.ix.Path, N: v.N, Reason: reason})
+		pf.freed += freed
+		total -= freed
+		pf.removed = append(pf.removed, RemovedVersion{Path: pf.ix.Path, N: v.N, Reason: reason})
 	}
 
 	if p.MaxAge > 0 {
@@ -98,23 +104,33 @@ func (s *Store) Prune(p PrunePolicy) (PruneReport, error) {
 	}
 
 	if p.MaxBytes > 0 {
-		for rep.TotalBytes > p.MaxBytes {
+		for total > p.MaxBytes {
 			pf, v := pickEviction(files)
 			if pf == nil {
-				rep.OverCapBytes = rep.TotalBytes - p.MaxBytes
+				rep.OverCapBytes = total - p.MaxBytes
 				break
 			}
 			remove(pf, v, "size")
 		}
 	}
 
-	if p.DryRun {
-		return rep, nil
-	}
+	// the report counts a file's removals only once they are applied, so a prune that stops part way reports what it did
+	var before int64
 	for _, pf := range files {
-		if err := s.applyPrune(pf); err != nil {
-			return rep, err
+		for h := range pf.sizes {
+			before += pf.sizes[h]
 		}
+	}
+	rep.TotalBytes = before
+	for _, pf := range files {
+		if !p.DryRun {
+			if err := s.applyPrune(pf); err != nil {
+				return rep, err
+			}
+		}
+		rep.Removed = append(rep.Removed, pf.removed...)
+		rep.FreedBytes += pf.freed
+		rep.TotalBytes -= pf.freed
 	}
 	return rep, nil
 }
@@ -131,8 +147,14 @@ func pickEviction(files []*pruneFile) (*pruneFile, Version) {
 		var cands []cand
 		for _, pf := range files {
 			rem := pf.remaining()
+			held := map[string]bool{} // content a manual version keeps: evicting an auto copy of it frees nothing
+			for _, v := range rem {
+				if v.Kind != KindAuto {
+					held[v.Hash] = true
+				}
+			}
 			for i, v := range rem {
-				if v.Kind != KindAuto || (!allowNewest && i == len(rem)-1) {
+				if v.Kind != KindAuto || held[v.Hash] || (!allowNewest && i == len(rem)-1) {
 					continue
 				}
 				cands = append(cands, cand{pf, v, len(rem)})
@@ -154,6 +176,11 @@ func pickEviction(files []*pruneFile) (*pruneFile, Version) {
 }
 
 func (s *Store) applyPrune(pf *pruneFile) error {
+	if s.beforeApply != nil {
+		if err := s.beforeApply(pf.dir); err != nil {
+			return err
+		}
+	}
 	changed := false
 	for _, v := range pf.ix.Versions {
 		if !pf.keep[v.N] {

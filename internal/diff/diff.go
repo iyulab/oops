@@ -4,27 +4,18 @@ package diff
 import (
 	"bytes"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/pmezard/go-difflib/difflib"
 )
 
-// IsBinary reports content that should not be shown as text.
+// IsBinary reports content that should not be shown as text. Like git, it looks for a NUL byte in the first
+// 8000 bytes: text in a legacy encoding (CP949, Shift-JIS, Latin-1) is not valid UTF-8 but is still text.
 func IsBinary(b []byte) bool {
 	head := b
 	if len(head) > 8000 {
 		head = head[:8000]
-		// do not judge a rune the cut split in two
-		for i := len(head) - 1; i >= 0 && i >= len(head)-utf8.UTFMax; i-- {
-			if utf8.RuneStart(head[i]) {
-				if !utf8.FullRune(head[i:]) {
-					head = head[:i]
-				}
-				break
-			}
-		}
 	}
-	return bytes.IndexByte(head, 0) >= 0 || !utf8.Valid(head)
+	return bytes.IndexByte(head, 0) >= 0
 }
 
 // Unified returns a unified diff with 3 lines of context, "" when equal.

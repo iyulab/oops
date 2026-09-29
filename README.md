@@ -115,8 +115,10 @@ Saving content equal to the latest version succeeds without a new version:
 | `now` | `{path, exists, latest, current, changed}` — `current` is 0 when no version matches |
 | `back`, `oops!` | `{path, restored, savedBefore: version\|null}` |
 | `changes` | `{path, from, to\|null, binary, diff}` |
-| `prune` | `{dryRun, removed: [{path, n, reason}], freedBytes, totalBytes, overCapBytes}` |
-| `gc` | `{orphans, removed, dryRun}` |
+| `files` | `{store, files: [{path, versions, latest}], unreadable: [{dir, error}]}` |
+| `prune` | `{dryRun, removed: [{path, n, reason}], freedBytes, totalBytes, overCapBytes, unreadable: [{dir, error}]}` — `removed` lists only what was applied |
+| `gc` | `{orphans, removed, dryRun}` — a history whose index cannot be read is never an orphan |
+| `--version` | `{version}` |
 | error | `{"error": {"code": "<code>", "message": "<text>"}}` |
 
 **Exit codes**

@@ -45,6 +45,9 @@ func (a *app) pruneCmd() *cobra.Command {
 				if r.OverCapBytes > 0 {
 					a.say("⚠ Still %d bytes over the limit — only saved versions remain", r.OverCapBytes)
 				}
+				for _, u := range r.Unreadable {
+					a.say("⚠ Skipped %s: its index cannot be read (%s)", u.Dir, u.Error)
+				}
 			})
 			return nil
 		},

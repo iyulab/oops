@@ -100,7 +100,7 @@ func TestRemoveFilesOrphans(t *testing.T) {
 	if err := s.Remove(a); err != nil {
 		t.Fatal(err)
 	}
-	files, _ := s.Files()
+	files, _, _ := s.Files()
 	if len(files) != 1 {
 		t.Fatalf("files after remove: %d", len(files))
 	}

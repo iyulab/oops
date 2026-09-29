@@ -84,6 +84,10 @@ func Run(args []string, stdout, stderr io.Writer) int {
 			a.json = true
 		}
 	}
+	if a.json {
+		v, _ := json.Marshal(map[string]string{"version": Version})
+		root.SetVersionTemplate(string(v) + "\n")
+	}
 	root.SetArgs(args)
 	root.SetOut(stdout)
 	root.SetErr(stderr)

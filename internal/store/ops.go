@@ -126,7 +126,15 @@ func (s *Store) RemoveHistory(ix *Index) error {
 	if err != nil {
 		return err
 	}
+	// the index goes first, under the lock: a reader then sees "not tracked", never an index whose blobs are gone
+	err = os.Remove(filepath.Join(dir, "index.json"))
 	unlock() // released before deletion: Windows cannot remove a locked file
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if s.beforeRemoveAll != nil {
+		s.beforeRemoveAll(dir)
+	}
 	return os.RemoveAll(dir)
 }
 
@@ -154,6 +162,9 @@ func (s *Store) Move(from, to string) (MoveResult, error) {
 		return MoveResult{}, err
 	}
 	src, dst := s.fileDir(fa), s.fileDir(ta)
+	if src == dst {
+		return s.renameInPlace(ix, src, fa, ta)
+	}
 	if _, err := os.Stat(dst); err == nil {
 		return MoveResult{}, errf(CodeAlreadyTracked, "%s already has a history", ta)
 	}
@@ -194,32 +205,72 @@ func (s *Store) Move(from, to string) (MoveResult, error) {
 	return res, nil
 }
 
-// Files lists every history in the store.
-func (s *Store) Files() ([]*Index, error) {
+// Unreadable names a history whose index could not be read.
+type Unreadable struct {
+	Dir   string `json:"dir"`
+	Error string `json:"error"`
+}
+
+// renameInPlace handles a move whose two paths share one history key (a case-only rename on Windows):
+// the history stays where it is, only its recorded path and the file change.
+func (s *Store) renameInPlace(ix *Index, dir, fa, ta string) (MoveResult, error) {
+	res := MoveResult{From: fa, To: ta}
+	if fa == ta {
+		return res, nil
+	}
+	_, statErr := os.Stat(fa)
+	res.MovedFile = statErr == nil
+	unlock, err := lockFile(dir, s.LockTimeout)
+	if err != nil {
+		return MoveResult{}, err
+	}
+	defer unlock()
+	ix.Path = ta
+	if err := s.saveIx(ix, dir); err != nil {
+		return MoveResult{}, err
+	}
+	if res.MovedFile {
+		if err := os.Rename(fa, ta); err != nil {
+			ix.Path = fa
+			s.saveIx(ix, dir)
+			return MoveResult{}, err
+		}
+	}
+	return res, nil
+}
+
+// Files lists every history in the store, and separately the ones whose index cannot be read.
+func (s *Store) Files() ([]*Index, []Unreadable, error) {
 	entries, err := os.ReadDir(filepath.Join(s.Root, "files"))
 	if errors.Is(err, os.ErrNotExist) {
-		return nil, nil
+		return nil, nil, nil
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var out []*Index
+	var bad []Unreadable
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
-		ix, err := s.loadIx(filepath.Join(s.Root, "files", e.Name()))
-		if err != nil || ix == nil {
+		dir := filepath.Join(s.Root, "files", e.Name())
+		ix, err := s.loadIx(dir)
+		if err != nil {
+			bad = append(bad, Unreadable{Dir: dir, Error: err.Error()})
 			continue
+		}
+		if ix == nil || len(ix.Versions) == 0 {
+			continue // an empty directory or an emptied index holds no versions
 		}
 		out = append(out, ix)
 	}
-	return out, nil
+	return out, bad, nil
 }
 
 // Orphans lists histories whose file no longer exists on disk.
 func (s *Store) Orphans() ([]*Index, error) {
-	files, err := s.Files()
+	files, _, err := s.Files() // an unreadable index is never an orphan: gc must not delete what it cannot read
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"strings"
 	"bytes"
 	"encoding/json"
 	"os"
@@ -176,5 +177,15 @@ func TestLocalSaveAddsStoreToExistingGitignore(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(gi); !bytes.Contains(b, []byte(".oops")) {
 		t.Fatalf(".gitignore not updated: %q", b)
+	}
+}
+
+func TestVersionAnswersInJSON(t *testing.T) {
+	r := run(t, "--version", "--json")
+	if r.code != 0 || jsonOf(t, r.stdout)["version"] != Version {
+		t.Fatalf("exit %d: %q", r.code, r.stdout)
+	}
+	if r := run(t, "--version"); r.code != 0 || !strings.Contains(r.stdout, Version) {
+		t.Fatalf("plain --version: %q", r.stdout)
 	}
 }

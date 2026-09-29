@@ -46,3 +46,13 @@ func TestUnifiedNoPhantomTrailingLine(t *testing.T) {
 		t.Fatalf("a one-line file must diff as one line:\n%q", out)
 	}
 }
+
+// Text in a legacy encoding (here CP949 Korean) is still text: like git, only a NUL byte makes content binary.
+func TestLegacyEncodedTextIsNotBinary(t *testing.T) {
+	old := []byte{0xc7, 0xd1, 0xb1, 0xdb, '\n'}       // "한글" in CP949
+	new := []byte{0xc7, 0xd1, 0xb1, 0xdb, '!', '\n'} // "한글!"
+	text, binary := Unified("k.txt", old, new)
+	if binary || !strings.Contains(text, "+") {
+		t.Fatalf("CP949 text shown as binary: %q", text)
+	}
+}

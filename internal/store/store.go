@@ -16,6 +16,10 @@ type Store struct {
 	LockTimeout time.Duration
 	base        string // when set, files under base are keyed and recorded by their path relative to it
 	now         func() time.Time
+
+	// test seams
+	beforeRemoveAll func(dir string)
+	beforeApply     func(dir string) error
 }
 
 // Open returns the store rooted at root. Nothing is created until a version is saved.
@@ -122,7 +126,7 @@ func (s *Store) index(abs string) (*Index, error) {
 	if err != nil {
 		return nil, err
 	}
-	if ix == nil {
+	if ix == nil || len(ix.Versions) == 0 {
 		return nil, errf(CodeNotTracked, "not versioned yet: %s", abs)
 	}
 	return ix, nil
