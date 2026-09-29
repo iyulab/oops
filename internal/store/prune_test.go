@@ -33,7 +33,7 @@ func TestPruneByAgeKeepsManual(t *testing.T) {
 	saveN(t, s, f, KindManual, "3")
 	s.now = func() time.Time { return time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC) }
 	r, err := s.Prune(PrunePolicy{MaxAge: 30 * 24 * time.Hour})
-	if err != nil || len(r.Removed) != 2 || r.Removed[0].Reason != "age" {
+	if err != nil || len(r.Removed) != 2 || r.Removed[0].Reason != "age" { // newest (manual) stays anyway
 		t.Fatalf("%+v %v", r, err)
 	}
 	ix, _ := s.History(f)
@@ -84,15 +84,27 @@ func TestPruneDryRunChangesNothingAndIsIdempotent(t *testing.T) {
 	saveN(t, s, f, KindAuto, "1", "2", "3")
 	s.now = func() time.Time { return time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC) }
 	dry, _ := s.Prune(PrunePolicy{MaxAge: time.Hour, DryRun: true})
-	if ix, _ := s.History(f); len(ix.Versions) != 3 || len(dry.Removed) != 3 || !dry.DryRun {
+	if ix, _ := s.History(f); len(ix.Versions) != 3 || len(dry.Removed) != 2 || !dry.DryRun {
 		t.Fatalf("dry run: %+v", dry)
 	}
 	first, _ := s.Prune(PrunePolicy{MaxAge: time.Hour})
 	second, _ := s.Prune(PrunePolicy{MaxAge: time.Hour})
-	if len(first.Removed) != 3 || len(second.Removed) != 0 {
+	if len(first.Removed) != 2 || len(second.Removed) != 0 {
 		t.Fatalf("idempotence: %+v / %+v", first, second)
 	}
-	if files, _ := s.Files(); len(files) != 0 {
-		t.Fatalf("empty history kept: %d", len(files))
+}
+
+func TestAgePruneKeepsEachFilesNewestVersion(t *testing.T) {
+	s, dir := newTestStore(t)
+	f := filepath.Join(dir, "snap.txt")
+	saveN(t, s, f, KindAuto, "1", "2", "3")
+	s.now = func() time.Time { return time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC) }
+	r, err := s.Prune(PrunePolicy{MaxAge: time.Hour})
+	if err != nil || len(r.Removed) != 2 {
+		t.Fatalf("%+v %v", r, err)
+	}
+	ix, err := s.History(f)
+	if err != nil || len(ix.Versions) != 1 || ix.Versions[0].N != 3 {
+		t.Fatalf("newest version must survive age pruning: %+v %v", ix, err)
 	}
 }

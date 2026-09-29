@@ -75,6 +75,11 @@ func (a *app) gcCmd() *cobra.Command {
 				paths = append(paths, ix.Path)
 			}
 			removed := []string{}
+			if !a.json {
+				for _, p := range paths {
+					a.say("  - %s", p)
+				}
+			}
 			if !dry && len(orphans) > 0 {
 				ok, err := a.confirm(yes, "Remove the versions of these missing files?")
 				if err != nil {
@@ -90,9 +95,6 @@ func (a *app) gcCmd() *cobra.Command {
 				}
 			}
 			a.emit(map[string]any{"orphans": paths, "removed": removed, "dryRun": dry}, func() {
-				for _, p := range paths {
-					a.say("  - %s", p)
-				}
 				a.say("✓ Removed %d of %d", len(removed), len(paths))
 			})
 			return nil

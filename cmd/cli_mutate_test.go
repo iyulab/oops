@@ -74,7 +74,9 @@ func TestMvCommand(t *testing.T) {
 func TestPruneAndGcCommands(t *testing.T) {
 	st, f := setup(t)
 	run(t, "--store", st, "save", f, "--auto")
-	r := run(t, "--store", st, "--json", "prune", "--max-age", "0d", "--dry-run")
+	os.WriteFile(f, []byte("v2\n"), 0o644)
+	run(t, "--store", st, "save", f, "--auto")
+	r := run(t, "--store", st, "--json", "prune", "--max-age", "0d", "--dry-run") // the newest stays
 	m := jsonOf(t, r.stdout)
 	if r.code != 0 || m["dryRun"] != true || len(m["removed"].([]any)) != 1 {
 		t.Fatalf("prune dry run: %s", r.stdout)
@@ -93,5 +95,26 @@ func TestUpdateRefusedWhenBundled(t *testing.T) {
 	t.Setenv("OOPS_NO_UPDATE", "1")
 	if r := run(t, "--json", "update"); r.code == 0 {
 		t.Fatalf("update must be refused: %+v", r)
+	}
+}
+
+func TestJSONErrorsForUnknownCommandAndFlag(t *testing.T) {
+	st, f := setup(t)
+	for _, args := range [][]string{{"--json", "bogus"}, {"save", "--bogus", "--json", f}} {
+		r := run(t, append([]string{"--store", st}, args...)...)
+		if r.code != 2 || jsonOf(t, r.stdout)["error"].(map[string]any)["code"] != "usage" {
+			t.Errorf("%v: exit %d, stdout %q", args, r.code, r.stdout)
+		}
+	}
+}
+
+func TestGcListsBeforeAsking(t *testing.T) {
+	st, f := setup(t)
+	run(t, "--store", st, "save", f)
+	os.Remove(f)
+	r := run(t, "--store", st, "gc") // stdin is empty: the answer is no
+	list, ask := strings.Index(r.stdout, f), strings.Index(r.stdout, "[y/N]")
+	if list < 0 || ask < 0 || list > ask {
+		t.Fatalf("the missing files must be listed before the question:\n%s", r.stdout)
 	}
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestRestoreKeepsUnsavedWorkAsAutoVersion(t *testing.T) {
+func TestRestoreKeepsUnsavedWork(t *testing.T) {
 	s, dir := newTestStore(t)
 	f := filepath.Join(dir, "a.txt")
 	write(t, f, "v1")
@@ -16,7 +16,7 @@ func TestRestoreKeepsUnsavedWorkAsAutoVersion(t *testing.T) {
 	s.Save(f, SaveOptions{})
 	write(t, f, "unsaved")
 	r, err := s.Restore(f, 1, SaveOptions{Actor: "tester"})
-	if err != nil || r.Restored != 1 || r.SavedBefore == nil || r.SavedBefore.Kind != KindAuto || r.SavedBefore.Actor != "tester" {
+	if err != nil || r.Restored != 1 || r.SavedBefore == nil || r.SavedBefore.Kind != KindManual || r.SavedBefore.Actor != "tester" {
 		t.Fatalf("restore: %+v %v", r, err)
 	}
 	if b, _ := os.ReadFile(f); string(b) != "v1" {
@@ -133,5 +133,102 @@ func TestConcurrentSaves(t *testing.T) {
 	ix, err := s.History(f)
 	if err != nil || len(ix.Versions) != 1 || ix.Next != 2 {
 		t.Fatalf("8 concurrent saves of one content must yield exactly one version: %+v %v", ix, err)
+	}
+}
+
+func TestFailedRestoreOnUntrackedLeavesNoTraceAndMoveStillWorks(t *testing.T) {
+	s, dir := newTestStore(t)
+	u, m := filepath.Join(dir, "u.txt"), filepath.Join(dir, "m.txt")
+	if _, err := s.Restore(u, 1, SaveOptions{}); CodeOf(err) != CodeNotTracked {
+		t.Fatalf("restore untracked: %v", err)
+	}
+	if _, err := os.Stat(s.fileDir(u)); !os.IsNotExist(err) {
+		t.Fatal("a failed restore left a directory for an untracked file")
+	}
+	write(t, m, "m")
+	s.Save(m, SaveOptions{})
+	if _, err := s.Move(m, u); err != nil {
+		t.Fatalf("move: %v", err)
+	}
+	if ix, err := s.History(u); err != nil || len(ix.Versions) != 1 {
+		t.Fatalf("history stranded: %+v %v", ix, err)
+	}
+}
+
+func TestLocalStoreSurvivesFolderRename(t *testing.T) {
+	root := t.TempDir()
+	proj := filepath.Join(root, "proj")
+	f := filepath.Join(proj, "k.txt")
+	write(t, f, "k")
+	if _, err := OpenLocal(proj).Save(f, SaveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	moved := filepath.Join(root, "proj2")
+	if err := os.Rename(proj, moved); err != nil {
+		t.Fatal(err)
+	}
+	s := OpenLocal(moved)
+	if ix, err := s.History(filepath.Join(moved, "k.txt")); err != nil || ix.Path != filepath.Join(moved, "k.txt") {
+		t.Fatalf("history after folder rename: %+v %v", ix, err)
+	}
+	if orph, _ := s.Orphans(); len(orph) != 0 {
+		t.Fatalf("a file next to its store reported missing: %+v", orph[0])
+	}
+}
+
+func TestRestoreSafetyCopyIsNeverPruned(t *testing.T) {
+	s, dir := newTestStore(t)
+	f := filepath.Join(dir, "w.txt")
+	write(t, f, "good")
+	s.Save(f, SaveOptions{})
+	write(t, f, "edits")
+	r, _ := s.Restore(f, 1, SaveOptions{})
+	if r.SavedBefore == nil || r.SavedBefore.Kind != KindManual {
+		t.Fatalf("safety copy must be a saved version: %+v", r.SavedBefore)
+	}
+}
+
+func TestRestoreOntoReadOnlyFile(t *testing.T) {
+	s, dir := newTestStore(t)
+	f := filepath.Join(dir, "ro.txt")
+	write(t, f, "v1")
+	s.Save(f, SaveOptions{})
+	write(t, f, "v2")
+	s.Save(f, SaveOptions{})
+	if err := os.Chmod(f, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chmod(f, 0o644)
+	if _, err := s.Restore(f, 1, SaveOptions{}); err != nil {
+		t.Fatalf("restore onto read-only: %v", err)
+	}
+	if b, _ := os.ReadFile(f); string(b) != "v1" {
+		t.Fatalf("content: %q", b)
+	}
+	if fi, _ := os.Stat(f); fi.Mode().Perm()&0o200 != 0 {
+		t.Fatal("read-only attribute not kept")
+	}
+	if _, err := os.Stat(f + ".oops-tmp"); !os.IsNotExist(err) {
+		t.Fatal("temp file left behind")
+	}
+}
+
+func TestRestoreWritesThroughSymlink(t *testing.T) {
+	s, dir := newTestStore(t)
+	real, link := filepath.Join(dir, "real.txt"), filepath.Join(dir, "link.txt")
+	write(t, real, "v1")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlinks unavailable here: %v", err)
+	}
+	s.Save(link, SaveOptions{})
+	write(t, real, "v2")
+	if _, err := s.Restore(link, 1, SaveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if fi, _ := os.Lstat(link); fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("restore replaced the symlink with a regular file")
+	}
+	if b, _ := os.ReadFile(real); string(b) != "v1" {
+		t.Fatalf("target not restored: %q", b)
 	}
 }

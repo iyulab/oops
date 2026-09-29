@@ -16,10 +16,14 @@ type RestoreResult struct {
 }
 
 // Restore writes version n back to the file. Content on disk that matches no
-// version is first kept as an auto version, so a restore never loses work.
+// version is first kept as a saved (manual) version, so a restore never loses work
+// and prune never removes that copy.
 func (s *Store) Restore(file string, n int, o SaveOptions) (RestoreResult, error) {
 	abs, err := absPath(file)
 	if err != nil {
+		return RestoreResult{}, err
+	}
+	if _, err := s.index(abs); err != nil { // before locking: a lock would create the directory
 		return RestoreResult{}, err
 	}
 	dir := s.fileDir(abs)
@@ -46,7 +50,7 @@ func (s *Store) Restore(file string, n int, o SaveOptions) (RestoreResult, error
 			return res, nil
 		}
 		if !ix.HasHash(h) {
-			o.Kind = KindAuto
+			o.Kind = KindManual
 			if o.Label == "" {
 				o.Label = fmt.Sprintf("before restore to #%d", n)
 			}
@@ -66,15 +70,40 @@ func (s *Store) Restore(file string, n int, o SaveOptions) (RestoreResult, error
 	return res, writeAtomic(abs, data)
 }
 
+// writeAtomic replaces the file's content through a temp file and a rename. It
+// writes through a symlink to its target and keeps a read-only file read-only.
 func writeAtomic(abs string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+	target := abs
+	if r, err := filepath.EvalSymlinks(abs); err == nil {
+		target = r
+	}
+	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return err
 	}
-	tmp := abs + ".oops-tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
-		return err
+	mode, readOnly := os.FileMode(0o644), false
+	if fi, err := os.Stat(target); err == nil {
+		mode = fi.Mode().Perm()
+		if mode&0o200 == 0 {
+			readOnly = true
+			if err := os.Chmod(target, mode|0o200); err != nil {
+				return err
+			}
+		}
 	}
-	return os.Rename(tmp, abs)
+	tmp := target + ".oops-tmp"
+	err := os.WriteFile(tmp, data, mode|0o200)
+	if err == nil {
+		err = os.Rename(tmp, target)
+	}
+	if err != nil {
+		os.Remove(tmp)
+	}
+	if readOnly {
+		if cerr := os.Chmod(target, mode); err == nil {
+			err = cerr
+		}
+	}
+	return err
 }
 
 // Remove deletes every version of the file.
@@ -109,7 +138,8 @@ type MoveResult struct {
 }
 
 // Move carries a file's history to a new path, moving the file too when it is
-// still at the old path.
+// still at the old path. The history moves first and is moved back if the file
+// cannot follow, so a failure never leaves the two apart.
 func (s *Store) Move(from, to string) (MoveResult, error) {
 	fa, err := absPath(from)
 	if err != nil {
@@ -123,7 +153,8 @@ func (s *Store) Move(from, to string) (MoveResult, error) {
 	if err != nil {
 		return MoveResult{}, err
 	}
-	if existing, _ := loadIndex(s.fileDir(ta)); existing != nil {
+	src, dst := s.fileDir(fa), s.fileDir(ta)
+	if _, err := os.Stat(dst); err == nil {
 		return MoveResult{}, errf(CodeAlreadyTracked, "%s already has a history", ta)
 	}
 	res := MoveResult{From: fa, To: ta}
@@ -131,26 +162,36 @@ func (s *Store) Move(from, to string) (MoveResult, error) {
 		if _, err := os.Stat(ta); err == nil {
 			return MoveResult{}, fmt.Errorf("target exists: %s", ta)
 		}
-		if err := os.MkdirAll(filepath.Dir(ta), 0o755); err != nil {
-			return MoveResult{}, err
-		}
-		if err := os.Rename(fa, ta); err != nil {
-			return MoveResult{}, err
-		}
 		res.MovedFile = true
 	}
-	src, dst := s.fileDir(fa), s.fileDir(ta)
 	unlock, err := lockFile(src, s.LockTimeout)
 	if err != nil {
 		return MoveResult{}, err
 	}
 	ix.Path = ta
-	err = ix.save(src)
-	unlock()
+	err = s.saveIx(ix, src)
+	unlock() // released before the rename: Windows cannot rename a directory with an open file
+	if err == nil {
+		err = os.Rename(src, dst)
+	}
 	if err != nil {
+		ix.Path = fa
+		s.saveIx(ix, src)
 		return MoveResult{}, err
 	}
-	return res, os.Rename(src, dst)
+	if res.MovedFile {
+		if err := os.MkdirAll(filepath.Dir(ta), 0o755); err == nil {
+			err = os.Rename(fa, ta)
+		}
+		if err != nil {
+			if rerr := os.Rename(dst, src); rerr == nil {
+				ix.Path = fa
+				s.saveIx(ix, src)
+			}
+			return MoveResult{}, err
+		}
+	}
+	return res, nil
 }
 
 // Files lists every history in the store.
@@ -167,7 +208,7 @@ func (s *Store) Files() ([]*Index, error) {
 		if !e.IsDir() {
 			continue
 		}
-		ix, err := loadIndex(filepath.Join(s.Root, "files", e.Name()))
+		ix, err := s.loadIx(filepath.Join(s.Root, "files", e.Name()))
 		if err != nil || ix == nil {
 			continue
 		}

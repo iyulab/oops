@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/iyulab/oops/internal/compress"
@@ -13,6 +14,7 @@ import (
 type Store struct {
 	Root        string
 	LockTimeout time.Duration
+	base        string // when set, files under base are keyed and recorded by their path relative to it
 	now         func() time.Time
 }
 
@@ -47,7 +49,11 @@ type Status struct {
 }
 
 func (s *Store) fileDir(abs string) string {
-	return filepath.Join(s.Root, "files", FileKey(abs))
+	key := abs
+	if rel := s.relPath(abs); rel != "" {
+		key = "rel:" + rel
+	}
+	return filepath.Join(s.Root, "files", FileKey(key))
 }
 
 func absPath(file string) (string, error) {
@@ -83,7 +89,7 @@ func (s *Store) Save(file string, o SaveOptions) (SaveResult, error) {
 }
 
 func (s *Store) saveLocked(abs, dir string, data []byte, o SaveOptions) (SaveResult, error) {
-	ix, err := loadIndex(dir)
+	ix, err := s.loadIx(dir)
 	if err != nil {
 		return SaveResult{}, err
 	}
@@ -105,14 +111,14 @@ func (s *Store) saveLocked(abs, dir string, data []byte, o SaveOptions) (SaveRes
 		Kind: kind, Actor: o.Actor, Label: o.Label, Meta: o.Meta}
 	ix.Versions = append(ix.Versions, v)
 	ix.Next++
-	if err := ix.save(dir); err != nil {
+	if err := s.saveIx(ix, dir); err != nil {
 		return SaveResult{}, err
 	}
 	return SaveResult{Saved: true, Path: ix.Path, Version: v}, nil
 }
 
 func (s *Store) index(abs string) (*Index, error) {
-	ix, err := loadIndex(s.fileDir(abs))
+	ix, err := s.loadIx(s.fileDir(abs))
 	if err != nil {
 		return nil, err
 	}
@@ -180,4 +186,50 @@ func (s *Store) Status(file string) (Status, error) {
 	}
 	st.Changed = st.Current == 0
 	return st, nil
+}
+
+// OpenLocal returns the store kept in base/.oops. Files under base are recorded
+// by their path relative to base, so renaming or moving the folder keeps its history.
+func OpenLocal(base string) *Store {
+	s := Open(filepath.Join(base, OopsDir))
+	if abs, err := filepath.Abs(base); err == nil {
+		s.base = abs
+	}
+	return s
+}
+
+// relPath is abs relative to the store's base, "" when abs is not under it.
+func (s *Store) relPath(abs string) string {
+	if s.base == "" {
+		return ""
+	}
+	rel, err := filepath.Rel(s.base, abs)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return ""
+	}
+	return filepath.ToSlash(rel)
+}
+
+// resolve turns a recorded path back into an absolute one.
+func (s *Store) resolve(p string) string {
+	if s.base != "" && !filepath.IsAbs(p) {
+		return filepath.Join(s.base, filepath.FromSlash(p))
+	}
+	return p
+}
+
+func (s *Store) loadIx(dir string) (*Index, error) {
+	ix, err := loadIndex(dir)
+	if ix != nil {
+		ix.Path = s.resolve(ix.Path)
+	}
+	return ix, err
+}
+
+func (s *Store) saveIx(ix *Index, dir string) error {
+	rec := *ix
+	if rel := s.relPath(ix.Path); rel != "" {
+		rec.Path = rel
+	}
+	return rec.save(dir)
 }

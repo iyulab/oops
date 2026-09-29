@@ -12,9 +12,10 @@
 - `--json` on every command, and documented exit codes.
 - `--store <dir>` / `OOPS_STORE` to keep versions anywhere.
 - Saved vs automatic versions (`--auto`), `--actor`, and `--meta key=value` with `history --where`.
-- `prune --max-age / --max-size / --dry-run`; saved versions are never removed.
+- `prune --max-age / --max-size / --dry-run`; saved versions and each file's newest version are never removed by age.
 - `cat` (print or write a version), `mv` (move a file with its versions).
-- `back` keeps unsaved changes as an automatic version before going back.
+- `back` keeps unsaved changes as a saved version before going back (never removed by `prune`).
+- A local store records files relative to its folder: renaming or moving the folder keeps its versions.
 - Safe concurrent use of one store (per-file lock, `--lock-timeout`).
 - `OOPS_NO_UPDATE` makes `oops update` refuse to replace a bundled binary.
 

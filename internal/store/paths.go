@@ -29,11 +29,6 @@ func FileKey(abs string) string {
 	return hex.EncodeToString(sum[:8])
 }
 
-// LocalRoot is the store beside a file.
-func LocalRoot(absFile string) string {
-	return filepath.Join(filepath.Dir(absFile), OopsDir)
-}
-
 // GlobalRoot is the store in the user's home directory.
 func GlobalRoot() (string, error) {
 	home, err := os.UserHomeDir()

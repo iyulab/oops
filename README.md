@@ -55,8 +55,8 @@ oops save notes.md "before the big edit"   # saved - kept until you delete it
 oops save notes.md --auto                  # automatic - may be removed by prune
 ```
 
-Versions made by `back` to keep unsaved changes are automatic. `prune` only ever removes automatic
-versions.
+Versions made by `back` to keep unsaved changes are saved versions. `prune` only ever removes automatic
+versions, and never a file's newest version by age.
 
 ## Keeping the Store Small
 
@@ -86,7 +86,8 @@ A store holds any number of files:
 ```
 <store>/
 └── files/
-    └── <key>/            ← one directory per file (key = hash of its path)
+    └── <key>/            ← one directory per file (key = hash of its path; relative to
+                            the folder for a local store, so renaming the folder keeps its versions)
         ├── index.json    ← versions: number, time, kind, label, actor, metadata
         └── blobs/        ← content, one file per distinct version (gzip when useful)
 ```

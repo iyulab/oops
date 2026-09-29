@@ -88,8 +88,9 @@ func (s *Store) Prune(p PrunePolicy) (PruneReport, error) {
 	if p.MaxAge > 0 {
 		cutoff := s.now().Add(-p.MaxAge)
 		for _, pf := range files {
-			for _, v := range pf.ix.Versions {
-				if v.Kind == KindAuto && v.Time.Before(cutoff) {
+			for i, v := range pf.ix.Versions {
+				// a file's newest version is what it last looked like: age never removes it
+				if i < len(pf.ix.Versions)-1 && v.Kind == KindAuto && v.Time.Before(cutoff) {
 					remove(pf, v, "age")
 				}
 			}
@@ -167,7 +168,7 @@ func (s *Store) applyPrune(pf *pruneFile) error {
 	if err != nil {
 		return err
 	}
-	fresh, err := loadIndex(pf.dir) // re-read under the lock: a save may have landed meanwhile
+	fresh, err := s.loadIx(pf.dir) // re-read under the lock: a save may have landed meanwhile
 	if err != nil || fresh == nil {
 		unlock()
 		return err
@@ -183,7 +184,7 @@ func (s *Store) applyPrune(pf *pruneFile) error {
 		unlock()
 		return os.RemoveAll(pf.dir)
 	}
-	if err := fresh.save(pf.dir); err != nil {
+	if err := s.saveIx(fresh, pf.dir); err != nil {
 		unlock()
 		return err
 	}

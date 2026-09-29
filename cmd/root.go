@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/iyulab/oops/internal/config"
@@ -73,13 +74,25 @@ func errorCode(err error) string {
 // Run executes oops with args and returns the process exit code.
 func Run(args []string, stdout, stderr io.Writer) int {
 	a := &app{stdout: stdout, stderr: stderr}
-	root := a.newRootCmd()
+	root := a.newRootCmd() // registering --json resets a.json, so scan after it
+	// known before parsing, so an unknown command or flag still answers in JSON
+	for _, arg := range args {
+		if arg == "--" {
+			break
+		}
+		if arg == "--json" || arg == "--json=true" {
+			a.json = true
+		}
+	}
 	root.SetArgs(args)
 	root.SetOut(stdout)
 	root.SetErr(stderr)
 	err := root.Execute()
 	if err == nil {
 		return 0
+	}
+	if strings.HasPrefix(err.Error(), "unknown command") {
+		err = usage(err)
 	}
 	if a.json {
 		json.NewEncoder(stdout).Encode(map[string]any{"error": map[string]string{"code": errorCode(err), "message": err.Error()}})
@@ -137,6 +150,12 @@ func (a *app) open(root string) *store.Store {
 	return s
 }
 
+func (a *app) openLocal(base string) *store.Store {
+	s := store.OpenLocal(base)
+	s.LockTimeout = a.lockTimeout
+	return s
+}
+
 func (a *app) explicitRoot() (string, error) {
 	if a.storeDir != "" {
 		return a.storeDir, nil
@@ -161,7 +180,7 @@ func (a *app) storeFor(file string) (*store.Store, error) {
 		if err != nil {
 			return nil, err
 		}
-		root = store.LocalRoot(abs)
+		return a.openLocal(filepath.Dir(abs)), nil
 	}
 	return a.open(root), nil
 }
@@ -177,7 +196,7 @@ func (a *app) storeHere() (*store.Store, error) {
 		if err != nil {
 			return nil, err
 		}
-		root = filepath.Join(cwd, store.OopsDir)
+		return a.openLocal(cwd), nil
 	}
 	return a.open(root), nil
 }
